@@ -46,6 +46,13 @@ import {
   agentManager,
 } from '../agents/index.js';
 import type { AgentConfig, AgentType } from '../agents/types.js';
+import {
+  getBashCompletion,
+  getZshCompletion,
+  getFishCompletion,
+  installCompletion,
+  detectShell,
+} from '../completions/index.js';
 
 const program = new Command();
 
@@ -3572,190 +3579,61 @@ async function showInfo(): Promise<void> {
 }
 
 async function generateCompletion(shell?: string): Promise<void> {
-  const detectedShell = shell || process.env.SHELL?.split('/').pop() || 'bash';
+  // Handle 'install' action
+  if (shell === 'install') {
+    const result = installCompletion();
+    if (result.success) {
+      console.log(chalk.green(`✓ Installed ${result.shell} completion`));
+      console.log(chalk.dim(result.message));
+    } else {
+      console.log(chalk.red(`✗ Installation failed`));
+      console.log(chalk.dim(result.message));
+    }
+    return;
+  }
 
-  console.log(chalk.cyan(`\nGenerating ${detectedShell} completion script...\n`));
-
-  const commands = [
-    'chat', 'ask', 'tools', 'doctor', 'plugins', 'sessions',
-    'resume', 'config', 'run', 'history', 'search', 'completion'
-  ];
+  // Detect shell if not specified
+  const detectedShell = shell || detectShell();
 
   if (detectedShell === 'bash') {
-    const bashCompletion = `
-# AnkrCode bash completion
-# Add to ~/.bashrc or ~/.bash_completion
-
-_ankrcode_completions() {
-    local cur="\${COMP_WORDS[COMP_CWORD]}"
-    local prev="\${COMP_WORDS[COMP_CWORD-1]}"
-
-    case "\${prev}" in
-        ankrcode)
-            COMPREPLY=( $(compgen -W "${commands.join(' ')}" -- "\${cur}") )
-            return 0
-            ;;
-        chat)
-            COMPREPLY=( $(compgen -W "--lang --model --offline --voice --personality --verbose" -- "\${cur}") )
-            return 0
-            ;;
-        config)
-            COMPREPLY=( $(compgen -W "--list --global --set --get --init --reset" -- "\${cur}") )
-            return 0
-            ;;
-        run)
-            COMPREPLY=( $(compgen -W "--compile --output --dry-run" -f -X '!*.rocket' -- "\${cur}") )
-            return 0
-            ;;
-        search)
-            COMPREPLY=( $(compgen -W "--type --glob --ignore-case --count --files --limit" -- "\${cur}") )
-            return 0
-            ;;
-        --lang)
-            COMPREPLY=( $(compgen -W "en hi ta te kn mr gu bn pa ml or" -- "\${cur}") )
-            return 0
-            ;;
-        --model)
-            COMPREPLY=( $(compgen -W "claude gpt groq gemini" -- "\${cur}") )
-            return 0
-            ;;
-        --type)
-            COMPREPLY=( $(compgen -W "ts js py go rust java" -- "\${cur}") )
-            return 0
-            ;;
-        --compile)
-            COMPREPLY=( $(compgen -W "js sh go" -- "\${cur}") )
-            return 0
-            ;;
-    esac
-
-    COMPREPLY=()
-}
-
-complete -F _ankrcode_completions ankrcode
-`;
-    console.log(bashCompletion);
-    console.log(chalk.dim('# To install, add the above to ~/.bashrc and run: source ~/.bashrc'));
-
+    console.log(getBashCompletion());
+    console.log(chalk.dim('\n# To install: ankrcode completion bash >> ~/.bashrc && source ~/.bashrc'));
   } else if (detectedShell === 'zsh') {
-    const zshCompletion = `
-#compdef ankrcode
-# AnkrCode zsh completion
-# Add to ~/.zshrc or place in a file in your $fpath
-
-_ankrcode() {
-    local -a commands
-    commands=(
-        'chat:Start interactive chat'
-        'ask:Ask a single question'
-        'tools:List available tools'
-        'doctor:Check system health'
-        'plugins:Manage plugins'
-        'sessions:Manage conversation sessions'
-        'resume:Resume a previous conversation'
-        'config:View or modify configuration'
-        'run:Run a RocketLang script'
-        'history:Show command history'
-        'search:Search for code patterns'
-        'completion:Generate shell completion'
-    )
-
-    local -a chat_opts
-    chat_opts=(
-        '--lang[UI language]:language:(en hi ta te kn mr gu bn pa ml or)'
-        '--model[LLM model]:model:(claude gpt groq gemini)'
-        '--offline[Use local models only]'
-        '--voice[Enable voice input]'
-        '--personality[Personality type]:type:(default swayam)'
-        '--verbose[Verbose output]'
-    )
-
-    local -a search_opts
-    search_opts=(
-        '-t[File type]:type:(ts js py go rust java)'
-        '-g[Glob pattern]:pattern:'
-        '-i[Case insensitive]'
-        '-c[Count only]'
-        '-f[Files only]'
-        '-l[Limit results]:limit:'
-    )
-
-    _arguments -C \\
-        '1:command:->command' \\
-        '*::arg:->args'
-
-    case "\$state" in
-        command)
-            _describe 'command' commands
-            ;;
-        args)
-            case "\$words[1]" in
-                chat)
-                    _arguments \$chat_opts
-                    ;;
-                search)
-                    _arguments \$search_opts
-                    ;;
-                run)
-                    _files -g '*.rocket'
-                    ;;
-                resume)
-                    # Could add session ID completion here
-                    ;;
-            esac
-            ;;
-    esac
-}
-
-_ankrcode "\$@"
-`;
-    console.log(zshCompletion);
-    console.log(chalk.dim('# To install, add to ~/.zshrc: eval "$(ankrcode completion zsh)"'));
-
+    console.log(getZshCompletion());
+    console.log(chalk.dim('\n# To install: eval "$(ankrcode completion zsh)" in ~/.zshrc'));
   } else if (detectedShell === 'fish') {
-    const fishCompletion = `
-# AnkrCode fish completion
-# Save to ~/.config/fish/completions/ankrcode.fish
-
-complete -c ankrcode -f
-
-# Commands
-complete -c ankrcode -n __fish_use_subcommand -a chat -d 'Start interactive chat'
-complete -c ankrcode -n __fish_use_subcommand -a ask -d 'Ask a single question'
-complete -c ankrcode -n __fish_use_subcommand -a tools -d 'List available tools'
-complete -c ankrcode -n __fish_use_subcommand -a doctor -d 'Check system health'
-complete -c ankrcode -n __fish_use_subcommand -a plugins -d 'Manage plugins'
-complete -c ankrcode -n __fish_use_subcommand -a sessions -d 'Manage sessions'
-complete -c ankrcode -n __fish_use_subcommand -a resume -d 'Resume conversation'
-complete -c ankrcode -n __fish_use_subcommand -a config -d 'View/modify configuration'
-complete -c ankrcode -n __fish_use_subcommand -a run -d 'Run RocketLang script'
-complete -c ankrcode -n __fish_use_subcommand -a history -d 'Show history'
-complete -c ankrcode -n __fish_use_subcommand -a search -d 'Search code'
-complete -c ankrcode -n __fish_use_subcommand -a completion -d 'Generate completions'
-
-# Chat options
-complete -c ankrcode -n '__fish_seen_subcommand_from chat' -l lang -d 'Language' -xa 'en hi ta te kn mr'
-complete -c ankrcode -n '__fish_seen_subcommand_from chat' -l model -d 'Model' -xa 'claude gpt groq gemini'
-complete -c ankrcode -n '__fish_seen_subcommand_from chat' -l offline -d 'Offline mode'
-complete -c ankrcode -n '__fish_seen_subcommand_from chat' -l voice -d 'Enable voice'
-
-# Search options
-complete -c ankrcode -n '__fish_seen_subcommand_from search' -s t -l type -d 'File type' -xa 'ts js py go'
-complete -c ankrcode -n '__fish_seen_subcommand_from search' -s i -l ignore-case -d 'Case insensitive'
-complete -c ankrcode -n '__fish_seen_subcommand_from search' -s c -l count -d 'Count only'
-complete -c ankrcode -n '__fish_seen_subcommand_from search' -s f -l files -d 'Files only'
-
-# Run completions
-complete -c ankrcode -n '__fish_seen_subcommand_from run' -F -d 'RocketLang file'
-complete -c ankrcode -n '__fish_seen_subcommand_from run' -l dry-run -d 'Dry run'
-complete -c ankrcode -n '__fish_seen_subcommand_from run' -s c -l compile -d 'Compile' -xa 'js sh go'
-`;
-    console.log(fishCompletion);
-    console.log(chalk.dim('# Save to ~/.config/fish/completions/ankrcode.fish'));
-
+    console.log(getFishCompletion());
+    console.log(chalk.dim('\n# Save to: ~/.config/fish/completions/ankrcode.fish'));
   } else {
-    console.log(chalk.yellow(`Unknown shell: ${detectedShell}`));
-    console.log(chalk.dim('Supported shells: bash, zsh, fish'));
+    // Show help
+    console.log(chalk.cyan('\n⌨️  Shell Completion\n'));
+    console.log('Enable tab completion for ankrcode commands and options.\n');
+
+    console.log(chalk.white('Usage:\n'));
+    console.log('  Output completion script:');
+    console.log(chalk.dim('    ankrcode completion bash    # Output bash completion'));
+    console.log(chalk.dim('    ankrcode completion zsh     # Output zsh completion'));
+    console.log(chalk.dim('    ankrcode completion fish    # Output fish completion'));
+    console.log('');
+    console.log('  Install automatically:');
+    console.log(chalk.dim('    ankrcode completion install # Auto-detect and install'));
+    console.log('');
+
+    console.log(chalk.white('Manual Installation:\n'));
+    console.log(chalk.yellow('  Bash:'));
+    console.log(chalk.dim('    ankrcode completion bash >> ~/.bashrc && source ~/.bashrc'));
+    console.log('');
+    console.log(chalk.yellow('  Zsh:'));
+    console.log(chalk.dim('    Add to ~/.zshrc: eval "$(ankrcode completion zsh)"'));
+    console.log('');
+    console.log(chalk.yellow('  Fish:'));
+    console.log(chalk.dim('    ankrcode completion fish > ~/.config/fish/completions/ankrcode.fish'));
+    console.log('');
+
+    console.log(chalk.white('After Installation:\n'));
+    console.log('  Type `ankrcode ` and press TAB to see available commands.');
+    console.log('  Type `ankrcode workflow ` and press TAB to see subcommands.');
+    console.log('  Type `ankrcode agent spawn ` and press TAB to see agent types.');
   }
 }
 
@@ -27099,3 +26977,4 @@ async function runAgentCommand(
     }
   }
 }
+

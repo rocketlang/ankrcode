@@ -194,5 +194,17 @@ export type {
   AgentTypeConfig,
 } from './agents/index.js';
 
+// Shell Completions (v2.40)
+export {
+  getBashCompletion,
+  getZshCompletion,
+  getFishCompletion,
+  installCompletion,
+  detectShell,
+  getCompletionInstallPath,
+} from './completions/index.js';
+
+export type { ShellType } from './completions/index.js';
+
 // Version
-export const VERSION = '2.39.0';
+export const VERSION = '2.40.0';
