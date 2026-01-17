@@ -174,7 +174,18 @@ export class BrowserAgent extends EventEmitter {
           continue;
         }
 
-        const action = analysis.suggestedNextAction;
+        let action = analysis.suggestedNextAction;
+
+        // Validate and fix selector if needed
+        if (action.selector) {
+          const validatedAction = this.validateAndFixSelector(action, pageState);
+          if (validatedAction.fixed) {
+            if (task.verbose && validatedAction.originalSelector !== action.selector) {
+              console.log(`   ⚠️  Fixed invalid selector: "${validatedAction.originalSelector}" → "${action.selector}"`);
+            }
+          }
+          action = validatedAction.action;
+        }
 
         if (task.verbose) {
           console.log(`   🎯 Action: ${action.type}${action.selector ? ` on "${action.selector}"` : ''}${action.value ? ` with "${action.value}"` : ''}${action.url ? ` to "${action.url}"` : ''}`);
@@ -429,6 +440,202 @@ export class BrowserAgent extends EventEmitter {
     }
 
     return { completed: false, reason: 'Goal not yet completed' };
+  }
+
+  /**
+   * Validate and fix a selector if it's invalid or not in the element list
+   */
+  private validateAndFixSelector(
+    action: BrowserAction,
+    pageState: PageState
+  ): { action: BrowserAction; fixed: boolean; originalSelector?: string } {
+    const selector = action.selector;
+    if (!selector) {
+      return { action, fixed: false };
+    }
+
+    // Check if selector exists in our element list
+    const exactMatch = pageState.elements.find(el => el.selector === selector);
+    if (exactMatch) {
+      return { action, fixed: false };
+    }
+
+    // Check if selector is syntactically valid
+    const isValidSyntax = this.isValidCSSSelector(selector);
+
+    // If valid syntax but not in our list, it might still work (dynamic elements)
+    if (isValidSyntax) {
+      // But let's try to find a better match from our known elements
+      const betterMatch = this.findBestMatchingElement(selector, pageState);
+      if (betterMatch) {
+        return {
+          action: { ...action, selector: betterMatch.selector },
+          fixed: true,
+          originalSelector: selector,
+        };
+      }
+      // Valid syntax, not in list, but might work - let it through
+      return { action, fixed: false };
+    }
+
+    // Invalid syntax - try to find a matching element
+    const fallbackMatch = this.findBestMatchingElement(selector, pageState);
+    if (fallbackMatch) {
+      return {
+        action: { ...action, selector: fallbackMatch.selector },
+        fixed: true,
+        originalSelector: selector,
+      };
+    }
+
+    // Try to fix common selector syntax issues
+    const fixedSelector = this.fixSelectorSyntax(selector);
+    if (fixedSelector !== selector && this.isValidCSSSelector(fixedSelector)) {
+      return {
+        action: { ...action, selector: fixedSelector },
+        fixed: true,
+        originalSelector: selector,
+      };
+    }
+
+    // Can't fix - return original and let it fail with a clear error
+    return { action, fixed: false };
+  }
+
+  /**
+   * Check if a CSS selector has valid syntax
+   */
+  private isValidCSSSelector(selector: string): boolean {
+    try {
+      // Use a regex to catch common invalid patterns before DOM check
+      // Invalid patterns: [a.class], spaces in IDs without escaping, etc.
+
+      // Check for invalid attribute selector patterns like [a.class]
+      if (/\[[a-z]+\.[a-z]/i.test(selector)) {
+        return false;
+      }
+
+      // Check for unescaped spaces in ID selectors
+      if (/#[^#\s\[]+\s+[^>+~]/.test(selector) && !selector.includes(' > ') && !selector.includes(' + ') && !selector.includes(' ~ ')) {
+        return false;
+      }
+
+      // Basic structure validation
+      // Valid selectors: tag, .class, #id, tag.class, tag#id, [attr], :pseudo
+      const validPatterns = /^[a-zA-Z#.\[:*][a-zA-Z0-9_\-#.:\[\]="'()\s>+~*^$|,]*$/;
+      if (!validPatterns.test(selector)) {
+        return false;
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Find the best matching element from the page state based on selector hints
+   */
+  private findBestMatchingElement(
+    invalidSelector: string,
+    pageState: PageState
+  ): { selector: string; score: number } | null {
+    // Extract hints from the invalid selector
+    const hints = this.extractSelectorHints(invalidSelector);
+
+    if (hints.length === 0) {
+      return null;
+    }
+
+    let bestMatch: { selector: string; score: number } | null = null;
+
+    for (const element of pageState.elements) {
+      let score = 0;
+      const elementText = (element.text || '').toLowerCase();
+      const elementLabel = (element.ariaLabel || '').toLowerCase();
+      const elementSelector = element.selector.toLowerCase();
+
+      for (const hint of hints) {
+        const hintLower = hint.toLowerCase();
+
+        // Check if hint appears in element text
+        if (elementText.includes(hintLower)) {
+          score += 3;
+        }
+
+        // Check if hint appears in aria-label
+        if (elementLabel.includes(hintLower)) {
+          score += 3;
+        }
+
+        // Check if hint appears in selector
+        if (elementSelector.includes(hintLower)) {
+          score += 2;
+        }
+
+        // Check tag name match
+        if (element.tagName.toLowerCase() === hintLower) {
+          score += 1;
+        }
+      }
+
+      if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+        bestMatch = { selector: element.selector, score };
+      }
+    }
+
+    return bestMatch;
+  }
+
+  /**
+   * Extract meaningful hints from an invalid selector
+   */
+  private extractSelectorHints(selector: string): string[] {
+    const hints: string[] = [];
+
+    // Extract words from the selector (class names, IDs, tag names)
+    const words = selector.match(/[a-zA-Z][a-zA-Z0-9_-]{2,}/g) || [];
+
+    for (const word of words) {
+      const lower = word.toLowerCase();
+      // Skip common CSS words
+      if (!['nth', 'child', 'first', 'last', 'not', 'div', 'span', 'input', 'button', 'link'].includes(lower)) {
+        hints.push(word);
+      }
+    }
+
+    // Also try to extract from attribute selectors like [name="value"]
+    const attrMatches = selector.match(/\[[\w-]+=['"](.*?)['"]\]/g) || [];
+    for (const attr of attrMatches) {
+      const valueMatch = attr.match(/['"](.*?)['"]/);
+      if (valueMatch) {
+        hints.push(valueMatch[1]);
+      }
+    }
+
+    return hints;
+  }
+
+  /**
+   * Try to fix common selector syntax issues
+   */
+  private fixSelectorSyntax(selector: string): string {
+    let fixed = selector;
+
+    // Fix: [a.class] → a.class
+    fixed = fixed.replace(/\[([a-z]+\.[a-z][a-z0-9_-]*)\]/gi, '$1');
+
+    // Fix: spaces in IDs like "#my id" → "#my\\ id" or find element
+    // For now, just remove the problematic part
+    fixed = fixed.replace(/#([^\s#.\[]+)\s+([^\s>+~]+)(?![>+~])/g, '#$1');
+
+    // Fix: double brackets [[attr]] → [attr]
+    fixed = fixed.replace(/\[\[/g, '[').replace(/\]\]/g, ']');
+
+    // Fix: missing quotes in attribute values [attr=value] → [attr="value"]
+    fixed = fixed.replace(/\[(\w+)=([^\]"']+)\]/g, '[$1="$2"]');
+
+    return fixed;
   }
 
   /**

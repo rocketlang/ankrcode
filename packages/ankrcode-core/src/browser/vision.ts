@@ -21,18 +21,22 @@ export async function analyzeScreenshot(
   const systemPrompt = `You are a Computer Use agent analyzing a web page to help achieve a goal.
 Your task is to suggest the next browser action based on the page elements.
 
-IMPORTANT: You can ONLY perform these actions:
+AVAILABLE ACTIONS:
 - goto: Navigate to a URL (requires url parameter)
-- click: Click on an element (requires CSS selector)
+- click: Click on an element (requires CSS selector from the list below)
 - type: Type text into an input field (requires CSS selector and value)
 - press: Press a key (e.g., Enter, Tab, Escape)
 - scroll: Scroll the page (direction: up, down, left, right)
 - wait: Wait for an element or time
 
-When suggesting a click or type action, you MUST use one of the provided selectors exactly.
-Do not make up selectors - only use ones from the element list.
+CRITICAL RULES FOR SELECTORS:
+1. You MUST use EXACTLY one of the selectors from the numbered element list below
+2. Copy the selector EXACTLY as shown - do not modify, abbreviate, or invent selectors
+3. The selector appears in square brackets like [selector] - use only what's inside
+4. If no suitable element exists in the list, use scroll or goto instead
+5. NEVER make up selectors like "[a.class]" or "#id with spaces" - these will fail
 
-Respond in JSON format only.`;
+Respond with valid JSON only (no markdown, no code blocks).`;
 
   const elementsDescription = pageState.elements
     .slice(0, 25)
