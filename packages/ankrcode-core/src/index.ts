@@ -154,5 +154,45 @@ export type {
   PluginEvent,
 } from './plugins/index.js';
 
+// Workflow Engine (v2.39)
+export {
+  runWorkflow,
+  loadWorkflow,
+  saveWorkflow,
+  listWorkflows,
+  deleteWorkflow,
+  getWorkflowTemplates,
+  createFromTemplate,
+} from './workflow/index.js';
+
+export type {
+  WorkflowDefinition,
+  WorkflowStep,
+  WorkflowResult,
+  StepResult,
+  WorkflowContext,
+  WorkflowHooks,
+} from './workflow/index.js';
+
+// Autonomous Agents (v2.39)
+export {
+  agentManager,
+  spawnAgent,
+  stopAgent,
+  getAgent,
+  listAgents,
+  getAgentTypes,
+} from './agents/index.js';
+
+export type {
+  AgentType,
+  AgentStatus,
+  AgentConfig,
+  AgentState,
+  AgentResult,
+  AgentLogEntry,
+  AgentTypeConfig,
+} from './agents/index.js';
+
 // Version
-export const VERSION = '2.38.2';
+export const VERSION = '2.39.0';

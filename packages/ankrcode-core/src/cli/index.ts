@@ -28,6 +28,24 @@ import {
   initProject,
 } from '../config/index.js';
 import type { CLIOptions, SupportedLanguage } from '../types.js';
+import {
+  runWorkflow,
+  loadWorkflow,
+  saveWorkflow,
+  listWorkflows,
+  deleteWorkflow,
+  getWorkflowTemplates,
+  createFromTemplate,
+} from '../workflow/index.js';
+import {
+  spawnAgent,
+  stopAgent,
+  getAgent,
+  listAgents,
+  getAgentTypes,
+  agentManager,
+} from '../agents/index.js';
+import type { AgentConfig, AgentType } from '../agents/types.js';
 
 const program = new Command();
 
@@ -1398,6 +1416,41 @@ program
   .option('--verbose', 'Verbose output')
   .action(async (action, options) => {
     await runSchemaCommand(action, options);
+  });
+
+// Workflow command (v2.39)
+program
+  .command('workflow')
+  .alias('wf')
+  .description('Workflow automation - define, run, and manage multi-step workflows')
+  .argument('[action]', 'Action: run, list, create, show, delete, templates')
+  .argument('[name]', 'Workflow name')
+  .option('-f, --file <file>', 'Workflow YAML file')
+  .option('-t, --template <template>', 'Create from template (ci, cd, release, review, hotfix)')
+  .option('--dry-run', 'Show what would run without executing')
+  .option('--steps <steps>', 'Run only specific steps (comma-separated)')
+  .option('--from-step <step>', 'Start from a specific step')
+  .option('--verbose', 'Verbose output')
+  .action(async (action, name, options) => {
+    await runWorkflowCommand(action, name, options);
+  });
+
+// Agent command (v2.39)
+program
+  .command('agent')
+  .alias('ag')
+  .description('Autonomous AI agents - spawn, manage, and monitor agents')
+  .argument('[action]', 'Action: spawn, list, stop, logs, types, status')
+  .argument('[target]', 'Agent type or ID')
+  .option('-t, --task <task>', 'Task description for the agent')
+  .option('--model <model>', 'AI model to use')
+  .option('--timeout <seconds>', 'Timeout in seconds', '300')
+  .option('--max-iterations <n>', 'Maximum iterations')
+  .option('--verbose', 'Verbose output')
+  .option('--follow', 'Follow agent logs in real-time')
+  .option('--all', 'Apply to all agents (for stop)')
+  .action(async (action, target, options) => {
+    await runAgentCommand(action, target, options);
   });
 
 program.parse();
@@ -26608,5 +26661,441 @@ Provide:
     return response.content;
   } catch {
     return 'Could not generate migration plan.';
+  }
+}
+
+// ============================================================================
+// Workflow Command (v2.39)
+// ============================================================================
+
+interface WorkflowOptions {
+  file?: string;
+  template?: string;
+  dryRun?: boolean;
+  steps?: string;
+  fromStep?: string;
+  verbose?: boolean;
+}
+
+async function runWorkflowCommand(
+  action: string | undefined,
+  name: string | undefined,
+  options: WorkflowOptions
+): Promise<void> {
+  const ora = (await import('ora')).default;
+  const spinner = ora();
+
+  switch (action) {
+    case 'run': {
+      if (!name && !options.file) {
+        console.log(chalk.red('Error: Please specify a workflow name or --file'));
+        return;
+      }
+
+      try {
+        let workflow;
+        if (options.file) {
+          const fs = await import('fs');
+          const yaml = await import('yaml');
+          const content = fs.readFileSync(options.file, 'utf-8');
+          workflow = yaml.parse(content);
+        } else {
+          workflow = loadWorkflow(name!);
+        }
+
+        const stepsToRun = options.steps?.split(',').map(s => s.trim());
+
+        await runWorkflow(workflow, {
+          dryRun: options.dryRun,
+          verbose: options.verbose,
+          steps: stepsToRun,
+          fromStep: options.fromStep,
+        });
+      } catch (err) {
+        console.log(chalk.red(`Error: ${(err as Error).message}`));
+      }
+      break;
+    }
+
+    case 'list': {
+      const workflows = listWorkflows();
+
+      if (workflows.length === 0) {
+        console.log(chalk.yellow('\nNo workflows found.'));
+        console.log(chalk.dim('Create one with: ankrcode workflow create <name> --template ci'));
+      } else {
+        console.log(chalk.cyan('\n📋 Saved Workflows\n'));
+        for (const wf of workflows) {
+          console.log(`  ${chalk.white(wf)}`);
+        }
+        console.log(chalk.dim(`\n${workflows.length} workflow(s) found`));
+      }
+      break;
+    }
+
+    case 'create': {
+      if (!name) {
+        console.log(chalk.red('Error: Please specify a workflow name'));
+        return;
+      }
+
+      if (options.template) {
+        try {
+          const workflow = createFromTemplate(name, options.template);
+          saveWorkflow(workflow);
+          console.log(chalk.green(`✓ Created workflow "${name}" from template "${options.template}"`));
+          console.log(chalk.dim(`Run with: ankrcode workflow run ${name}`));
+        } catch (err) {
+          console.log(chalk.red(`Error: ${(err as Error).message}`));
+        }
+      } else {
+        // Create empty workflow
+        const workflow = {
+          name,
+          description: 'Custom workflow',
+          steps: [
+            { name: 'step1', command: 'echo "Step 1"', description: 'First step' },
+          ],
+        };
+        saveWorkflow(workflow);
+        console.log(chalk.green(`✓ Created workflow "${name}"`));
+        console.log(chalk.dim(`Edit at: ~/.ankrcode/workflows/${name}.yaml`));
+      }
+      break;
+    }
+
+    case 'show': {
+      if (!name) {
+        console.log(chalk.red('Error: Please specify a workflow name'));
+        return;
+      }
+
+      try {
+        const workflow = loadWorkflow(name);
+        console.log(chalk.cyan(`\n📋 Workflow: ${workflow.name}\n`));
+        if (workflow.description) {
+          console.log(chalk.dim(workflow.description));
+          console.log('');
+        }
+        console.log(chalk.yellow('Steps:'));
+        for (const step of workflow.steps) {
+          console.log(`  ${chalk.white(step.name)}: ${step.command}`);
+          if (step.description) {
+            console.log(chalk.dim(`    ${step.description}`));
+          }
+        }
+      } catch (err) {
+        console.log(chalk.red(`Error: ${(err as Error).message}`));
+      }
+      break;
+    }
+
+    case 'delete': {
+      if (!name) {
+        console.log(chalk.red('Error: Please specify a workflow name'));
+        return;
+      }
+
+      if (deleteWorkflow(name)) {
+        console.log(chalk.green(`✓ Deleted workflow "${name}"`));
+      } else {
+        console.log(chalk.red(`Workflow "${name}" not found`));
+      }
+      break;
+    }
+
+    case 'templates': {
+      const templates = getWorkflowTemplates();
+      console.log(chalk.cyan('\n📋 Workflow Templates\n'));
+      for (const [tmplName, tmpl] of Object.entries(templates)) {
+        console.log(`  ${chalk.yellow(tmplName)}: ${tmpl.description}`);
+        console.log(chalk.dim(`    Steps: ${tmpl.steps.map(s => s.name).join(' → ')}`));
+      }
+      console.log(chalk.dim('\nCreate from template: ankrcode workflow create <name> --template <template>'));
+      break;
+    }
+
+    default: {
+      console.log(chalk.cyan('\n🔄 Workflow Automation\n'));
+      console.log('Usage: ankrcode workflow <action> [name] [options]\n');
+      console.log('Actions:');
+      console.log('  run        Run a workflow');
+      console.log('  list       List saved workflows');
+      console.log('  create     Create a new workflow');
+      console.log('  show       Show workflow details');
+      console.log('  delete     Delete a workflow');
+      console.log('  templates  List available templates');
+      console.log('\nOptions:');
+      console.log('  -f, --file <file>      Run workflow from YAML file');
+      console.log('  -t, --template <name>  Create from template');
+      console.log('  --dry-run              Show what would run');
+      console.log('  --steps <steps>        Run only specific steps');
+      console.log('  --from-step <step>     Start from step');
+      console.log('  --verbose              Verbose output');
+      console.log('\nExamples:');
+      console.log('  ankrcode workflow run ci');
+      console.log('  ankrcode workflow create my-deploy --template cd');
+      console.log('  ankrcode workflow run my-deploy --dry-run');
+      console.log('  ankrcode workflow run release --from-step publish');
+      break;
+    }
+  }
+}
+
+// ============================================================================
+// Agent Command (v2.39)
+// ============================================================================
+
+interface AgentOptions {
+  task?: string;
+  model?: string;
+  timeout?: string;
+  maxIterations?: string;
+  verbose?: boolean;
+  follow?: boolean;
+  all?: boolean;
+}
+
+async function runAgentCommand(
+  action: string | undefined,
+  target: string | undefined,
+  options: AgentOptions
+): Promise<void> {
+  const ora = (await import('ora')).default;
+  const spinner = ora();
+
+  switch (action) {
+    case 'spawn': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify agent type'));
+        console.log(chalk.dim('Available: researcher, coder, reviewer, tester, debugger, architect, documenter'));
+        return;
+      }
+
+      if (!options.task) {
+        console.log(chalk.red('Error: Please specify a task with --task'));
+        return;
+      }
+
+      const validTypes = ['researcher', 'coder', 'reviewer', 'tester', 'debugger', 'architect', 'documenter'];
+      if (!validTypes.includes(target)) {
+        console.log(chalk.red(`Error: Invalid agent type "${target}"`));
+        console.log(chalk.dim(`Valid types: ${validTypes.join(', ')}`));
+        return;
+      }
+
+      spinner.start(`Spawning ${target} agent...`);
+
+      try {
+        const config: AgentConfig = {
+          type: target as AgentType,
+          task: options.task,
+          model: options.model,
+          timeout: options.timeout ? parseInt(options.timeout) : undefined,
+          maxIterations: options.maxIterations ? parseInt(options.maxIterations) : undefined,
+          verbose: options.verbose,
+        };
+
+        const agent = await spawnAgent(config);
+        spinner.succeed(`Agent spawned: ${agent.id}`);
+
+        console.log(chalk.cyan(`\n🤖 Agent: ${target}`));
+        console.log(chalk.dim(`ID: ${agent.id}`));
+        console.log(chalk.dim(`Task: ${options.task}`));
+        console.log(chalk.dim(`Status: ${agent.status}`));
+
+        if (options.follow) {
+          console.log(chalk.dim('\nFollowing agent logs (Ctrl+C to stop)...\n'));
+
+          // Subscribe to agent events
+          agentManager.on('agent:updated', (state) => {
+            if (state.id === agent.id) {
+              const latest = state.logs[state.logs.length - 1];
+              if (latest) {
+                const icon = latest.level === 'error' ? chalk.red('✗') :
+                  latest.level === 'warn' ? chalk.yellow('⚠') :
+                    latest.level === 'info' ? chalk.blue('ℹ') : chalk.dim('•');
+                console.log(`${icon} ${latest.message}`);
+              }
+            }
+          });
+
+          agentManager.on('agent:completed', (state) => {
+            if (state.id === agent.id) {
+              console.log(chalk.green(`\n✓ Agent completed`));
+              if (state.output) {
+                console.log(chalk.dim(state.output));
+              }
+              process.exit(0);
+            }
+          });
+
+          agentManager.on('agent:failed', (state) => {
+            if (state.id === agent.id) {
+              console.log(chalk.red(`\n✗ Agent failed: ${state.error}`));
+              process.exit(1);
+            }
+          });
+        } else {
+          console.log(chalk.dim('\nCheck status: ankrcode agent status ' + agent.id));
+          console.log(chalk.dim('View logs: ankrcode agent logs ' + agent.id));
+        }
+      } catch (err) {
+        spinner.fail('Failed to spawn agent');
+        console.log(chalk.red((err as Error).message));
+      }
+      break;
+    }
+
+    case 'list': {
+      const agents = listAgents();
+
+      if (agents.length === 0) {
+        console.log(chalk.yellow('\nNo agents found.'));
+        console.log(chalk.dim('Spawn one with: ankrcode agent spawn <type> --task "description"'));
+      } else {
+        console.log(chalk.cyan('\n🤖 Agents\n'));
+
+        const statusIcon = (status: string) => {
+          switch (status) {
+            case 'running': return chalk.green('●');
+            case 'completed': return chalk.blue('✓');
+            case 'failed': return chalk.red('✗');
+            case 'paused': return chalk.yellow('⏸');
+            case 'stopped': return chalk.gray('⏹');
+            default: return chalk.dim('○');
+          }
+        };
+
+        for (const agent of agents) {
+          console.log(`  ${statusIcon(agent.status)} ${chalk.white(agent.id)}`);
+          console.log(chalk.dim(`    Type: ${agent.type} | Status: ${agent.status} | Progress: ${agent.progress}%`));
+          console.log(chalk.dim(`    Task: ${agent.task.substring(0, 50)}${agent.task.length > 50 ? '...' : ''}`));
+        }
+
+        console.log(chalk.dim(`\n${agents.length} agent(s)`));
+      }
+      break;
+    }
+
+    case 'stop': {
+      if (options.all) {
+        const count = agentManager.stopAll();
+        console.log(chalk.green(`✓ Stopped ${count} agent(s)`));
+      } else if (target) {
+        if (stopAgent(target)) {
+          console.log(chalk.green(`✓ Stopped agent: ${target}`));
+        } else {
+          console.log(chalk.red(`Agent not found or not running: ${target}`));
+        }
+      } else {
+        console.log(chalk.red('Error: Specify agent ID or use --all'));
+      }
+      break;
+    }
+
+    case 'logs': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify agent ID'));
+        return;
+      }
+
+      const agent = getAgent(target);
+      if (!agent) {
+        console.log(chalk.red(`Agent not found: ${target}`));
+        return;
+      }
+
+      console.log(chalk.cyan(`\n📋 Logs: ${target}\n`));
+
+      for (const log of agent.logs) {
+        const time = log.timestamp.toISOString().split('T')[1].split('.')[0];
+        const icon = log.level === 'error' ? chalk.red('✗') :
+          log.level === 'warn' ? chalk.yellow('⚠') :
+            log.level === 'info' ? chalk.blue('ℹ') : chalk.dim('•');
+        console.log(`${chalk.dim(time)} ${icon} ${log.message}`);
+      }
+      break;
+    }
+
+    case 'status': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify agent ID'));
+        return;
+      }
+
+      const agent = getAgent(target);
+      if (!agent) {
+        console.log(chalk.red(`Agent not found: ${target}`));
+        return;
+      }
+
+      console.log(chalk.cyan(`\n🤖 Agent Status\n`));
+      console.log(`ID:         ${chalk.white(agent.id)}`);
+      console.log(`Type:       ${chalk.white(agent.type)}`);
+      console.log(`Status:     ${chalk.white(agent.status)}`);
+      console.log(`Progress:   ${chalk.white(agent.progress + '%')}`);
+      console.log(`Iterations: ${chalk.white(agent.iterations.toString())}`);
+      console.log(`Task:       ${chalk.white(agent.task)}`);
+      console.log(`Started:    ${chalk.dim(agent.startedAt.toISOString())}`);
+      if (agent.completedAt) {
+        console.log(`Completed:  ${chalk.dim(agent.completedAt.toISOString())}`);
+      }
+      if (agent.error) {
+        console.log(chalk.red(`Error:      ${agent.error}`));
+      }
+      if (agent.output) {
+        console.log(chalk.dim(`\nOutput:\n${agent.output}`));
+      }
+      break;
+    }
+
+    case 'types': {
+      const types = getAgentTypes();
+      console.log(chalk.cyan('\n🤖 Agent Types\n'));
+
+      for (const [typeName, config] of Object.entries(types)) {
+        console.log(`  ${chalk.yellow(typeName)}: ${config.description}`);
+        console.log(chalk.dim(`    Tools: ${config.tools.join(', ')}`));
+        console.log(chalk.dim(`    Max iterations: ${config.maxIterations}, Timeout: ${config.timeout}s`));
+      }
+
+      console.log(chalk.dim('\nSpawn agent: ankrcode agent spawn <type> --task "description"'));
+      break;
+    }
+
+    default: {
+      console.log(chalk.cyan('\n🤖 Autonomous Agents\n'));
+      console.log('Usage: ankrcode agent <action> [target] [options]\n');
+      console.log('Actions:');
+      console.log('  spawn   Spawn a new agent');
+      console.log('  list    List all agents');
+      console.log('  stop    Stop an agent');
+      console.log('  logs    View agent logs');
+      console.log('  status  Get agent status');
+      console.log('  types   List agent types');
+      console.log('\nAgent Types:');
+      console.log('  researcher  Search and gather information');
+      console.log('  coder       Write code and implement features');
+      console.log('  reviewer    Code review and find issues');
+      console.log('  tester      Generate and run tests');
+      console.log('  debugger    Debug errors and fix issues');
+      console.log('  architect   Design systems and architecture');
+      console.log('  documenter  Write documentation');
+      console.log('\nOptions:');
+      console.log('  -t, --task <task>          Task description');
+      console.log('  --model <model>            AI model to use');
+      console.log('  --timeout <seconds>        Timeout');
+      console.log('  --max-iterations <n>       Max iterations');
+      console.log('  --follow                   Follow logs');
+      console.log('  --all                      Stop all agents');
+      console.log('\nExamples:');
+      console.log('  ankrcode agent spawn researcher --task "Find examples of React hooks"');
+      console.log('  ankrcode agent spawn coder --task "Implement user authentication" --follow');
+      console.log('  ankrcode agent list');
+      console.log('  ankrcode agent stop agent_123456');
+      console.log('  ankrcode agent logs agent_123456');
+      break;
+    }
   }
 }
