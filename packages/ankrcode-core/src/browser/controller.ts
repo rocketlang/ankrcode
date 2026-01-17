@@ -77,6 +77,131 @@ export class BrowserController {
   }
 
   /**
+   * Dismiss cookie consent banners
+   * Handles common cookie consent providers (OneTrust, CookieBot, GDPR banners, etc.)
+   */
+  async dismissCookieBanners(): Promise<{ dismissed: boolean; provider?: string }> {
+    if (!this.page) {
+      return { dismissed: false };
+    }
+
+    // Common cookie consent button selectors (accept/agree/dismiss)
+    const cookieSelectors = [
+      // OneTrust (NPR, many news sites)
+      { selector: '#onetrust-accept-btn-handler', provider: 'OneTrust' },
+      { selector: '.onetrust-close-btn-handler', provider: 'OneTrust' },
+      { selector: '#accept-recommended-btn-handler', provider: 'OneTrust' },
+
+      // CookieBot
+      { selector: '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll', provider: 'CookieBot' },
+      { selector: '#CybotCookiebotDialogBodyButtonAccept', provider: 'CookieBot' },
+
+      // Quantcast/GDPR
+      { selector: '.qc-cmp2-summary-buttons button[mode="primary"]', provider: 'Quantcast' },
+      { selector: '.qc-cmp-button', provider: 'Quantcast' },
+
+      // TrustArc
+      { selector: '.trustarc-agree-btn', provider: 'TrustArc' },
+      { selector: '#truste-consent-button', provider: 'TrustArc' },
+
+      // Generic GDPR/Cookie buttons (common patterns)
+      { selector: '[data-testid="cookie-policy-dialog-accept-button"]', provider: 'Generic' },
+      { selector: '[data-cookiebanner="accept_button"]', provider: 'Generic' },
+      { selector: 'button[data-gdpr-consent="accept"]', provider: 'Generic' },
+      { selector: '#cookie-consent-accept', provider: 'Generic' },
+      { selector: '#accept-cookies', provider: 'Generic' },
+      { selector: '#acceptAllCookies', provider: 'Generic' },
+      { selector: '.cookie-accept', provider: 'Generic' },
+      { selector: '.accept-cookies', provider: 'Generic' },
+      { selector: '.cookies-accept', provider: 'Generic' },
+      { selector: '[aria-label="Accept cookies"]', provider: 'Generic' },
+      { selector: '[aria-label="Accept all cookies"]', provider: 'Generic' },
+      { selector: 'button:has-text("Accept")', provider: 'Generic' },
+      { selector: 'button:has-text("Accept all")', provider: 'Generic' },
+      { selector: 'button:has-text("Accept All")', provider: 'Generic' },
+      { selector: 'button:has-text("Accept cookies")', provider: 'Generic' },
+      { selector: 'button:has-text("Allow all")', provider: 'Generic' },
+      { selector: 'button:has-text("Allow All")', provider: 'Generic' },
+      { selector: 'button:has-text("I agree")', provider: 'Generic' },
+      { selector: 'button:has-text("Agree")', provider: 'Generic' },
+      { selector: 'button:has-text("Got it")', provider: 'Generic' },
+      { selector: 'button:has-text("OK")', provider: 'Generic' },
+
+      // Close buttons on cookie dialogs
+      { selector: '.cookie-banner button.close', provider: 'Generic' },
+      { selector: '.cookie-notice button.close', provider: 'Generic' },
+      { selector: '.gdpr-banner button.close', provider: 'Generic' },
+    ];
+
+    try {
+      // Wait a moment for banners to appear
+      await this.page.waitForTimeout(500);
+
+      for (const { selector, provider } of cookieSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            const isVisible = await element.isVisible();
+            if (isVisible) {
+              await element.click({ timeout: 2000 });
+              // Wait for banner to disappear
+              await this.page.waitForTimeout(500);
+              return { dismissed: true, provider };
+            }
+          }
+        } catch {
+          // Selector not found or click failed, try next
+          continue;
+        }
+      }
+
+      // Try to find and remove overlay elements directly
+      await this.page.evaluate(`
+        (() => {
+          const overlaySelectors = [
+            '#onetrust-consent-sdk',
+            '.onetrust-pc-dark-filter',
+            '#cookie-banner',
+            '.cookie-banner',
+            '.cookie-consent',
+            '.gdpr-banner',
+            '.consent-banner',
+            '[class*="cookie-modal"]',
+            '[class*="cookie-overlay"]',
+            '[class*="consent-modal"]',
+            '[id*="cookie-banner"]',
+            '[id*="gdpr"]',
+          ];
+
+          for (const selector of overlaySelectors) {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              if (el instanceof HTMLElement) {
+                el.style.display = 'none';
+                el.remove();
+              }
+            });
+          }
+
+          // Remove any fixed/sticky overlays that might be blocking
+          document.querySelectorAll('[style*="position: fixed"], [style*="position:fixed"]').forEach(el => {
+            if (el instanceof HTMLElement) {
+              const text = el.innerText?.toLowerCase() || '';
+              if (text.includes('cookie') || text.includes('consent') || text.includes('gdpr') || text.includes('privacy')) {
+                el.style.display = 'none';
+              }
+            }
+          });
+        })()
+      `);
+
+      return { dismissed: false };
+    } catch {
+      return { dismissed: false };
+    }
+  }
+
+  /**
    * Execute a browser action
    */
   async execute(action: BrowserAction): Promise<{ success: boolean; error?: string; data?: any }> {
@@ -94,6 +219,8 @@ export class BrowserController {
             waitUntil: 'domcontentloaded',
             timeout: action.timeout || this.config.timeout,
           });
+          // Auto-dismiss cookie banners after navigation
+          await this.dismissCookieBanners();
           return { success: true };
         }
 
