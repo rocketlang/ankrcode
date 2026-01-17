@@ -515,6 +515,12 @@ export class BrowserAgent extends EventEmitter {
         return false;
       }
 
+      // Check for React-style IDs with colons like #:R10uvnk3crb:
+      // These need CSS escaping but are often generated incorrectly
+      if (/#:[A-Za-z0-9]+:/.test(selector)) {
+        return false;
+      }
+
       // Check for unescaped spaces in ID selectors
       if (/#[^#\s\[]+\s+[^>+~]/.test(selector) && !selector.includes(' > ') && !selector.includes(' + ') && !selector.includes(' ~ ')) {
         return false;
