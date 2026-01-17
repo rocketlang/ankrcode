@@ -53,6 +53,7 @@ import {
   installCompletion,
   detectShell,
 } from '../completions/index.js';
+import { browse, getBrowserAgent } from '../browser/index.js';
 
 const program = new Command();
 
@@ -1458,6 +1459,22 @@ program
   .option('--all', 'Apply to all agents (for stop)')
   .action(async (action, target, options) => {
     await runAgentCommand(action, target, options);
+  });
+
+// Browse command (v2.41) - Computer Use
+program
+  .command('browse')
+  .alias('b')
+  .description('Autonomous browser agent - Computer Use like Manus')
+  .argument('<goal>', 'What you want the browser to accomplish')
+  .option('-u, --url <url>', 'Starting URL')
+  .option('-s, --steps <n>', 'Maximum steps', '20')
+  .option('--headless', 'Run in headless mode (default: true)', true)
+  .option('--no-headless', 'Run with visible browser')
+  .option('-v, --verbose', 'Verbose output', true)
+  .option('--save-screenshots', 'Save screenshots of each step')
+  .action(async (goal, options) => {
+    await runBrowseCommand(goal, options);
   });
 
 program.parse();
@@ -26974,6 +26991,81 @@ async function runAgentCommand(
       console.log('  ankrcode agent stop agent_123456');
       console.log('  ankrcode agent logs agent_123456');
       break;
+    }
+  }
+}
+
+// ============================================================================
+// Browse Command (v2.41) - Computer Use
+// ============================================================================
+
+interface BrowseOptions {
+  url?: string;
+  steps?: string;
+  headless?: boolean;
+  verbose?: boolean;
+  saveScreenshots?: boolean;
+}
+
+async function runBrowseCommand(goal: string, options: BrowseOptions): Promise<void> {
+  console.log(chalk.cyan('\n🌐 AnkrCode Browser Agent (Computer Use)\n'));
+  console.log(chalk.dim('Like Manus - autonomous browser automation with vision'));
+  console.log('─'.repeat(50));
+
+  try {
+    const result = await browse(goal, {
+      startUrl: options.url,
+      verbose: options.verbose !== false,
+      maxSteps: options.steps ? parseInt(options.steps) : 20,
+    });
+
+    console.log('\n' + '─'.repeat(50));
+
+    if (result.success) {
+      console.log(chalk.green('✅ Goal Completed Successfully\n'));
+    } else {
+      console.log(chalk.red('❌ Goal Not Completed\n'));
+      if (result.error) {
+        console.log(chalk.red(`Error: ${result.error}`));
+      }
+    }
+
+    console.log(chalk.white('Summary:'));
+    console.log(`  Goal:     ${result.goal}`);
+    console.log(`  Steps:    ${result.steps.length}`);
+    console.log(`  Duration: ${(result.duration / 1000).toFixed(1)}s`);
+
+    if (result.finalState) {
+      console.log(`  Final URL: ${result.finalState.url}`);
+    }
+
+    // Save screenshots if requested
+    if (options.saveScreenshots && result.steps.length > 0) {
+      const fs = await import('fs');
+      const path = await import('path');
+      const screenshotDir = path.join(process.cwd(), '.ankrcode', 'screenshots');
+
+      if (!fs.existsSync(screenshotDir)) {
+        fs.mkdirSync(screenshotDir, { recursive: true });
+      }
+
+      for (const step of result.steps) {
+        if (step.screenshot) {
+          const filename = path.join(screenshotDir, `step-${step.stepNumber}.png`);
+          fs.writeFileSync(filename, Buffer.from(step.screenshot, 'base64'));
+        }
+      }
+
+      console.log(chalk.dim(`\nScreenshots saved to: ${screenshotDir}`));
+    }
+
+  } catch (err) {
+    console.log(chalk.red(`\n❌ Browse failed: ${(err as Error).message}`));
+
+    if ((err as Error).message.includes('playwright')) {
+      console.log(chalk.yellow('\nPlaywright not installed. Run:'));
+      console.log(chalk.dim('  npm install playwright'));
+      console.log(chalk.dim('  npx playwright install chromium'));
     }
   }
 }

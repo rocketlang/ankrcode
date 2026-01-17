@@ -206,5 +206,31 @@ export {
 
 export type { ShellType } from './completions/index.js';
 
+// Browser / Computer Use (v2.41)
+export {
+  browse,
+  getBrowserAgent,
+  BrowserAgent,
+  BrowserController,
+  getBrowserController,
+  closeBrowser,
+  analyzeScreenshot,
+  isGoalCompleted,
+} from './browser/index.js';
+
+export type {
+  BrowserAction,
+  BrowserActionType,
+  BrowserConfig,
+  BrowseTask,
+  BrowseStep,
+  BrowseResult,
+  BrowserSession,
+  BrowserStatus,
+  PageState,
+  ElementInfo,
+  VisionAnalysis,
+} from './browser/index.js';
+
 // Version
-export const VERSION = '2.40.0';
+export const VERSION = '2.41.0';
