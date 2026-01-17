@@ -9,6 +9,9 @@
  */
 
 import { EventEmitter } from 'events';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 // ============================================================================
 // Types
@@ -71,12 +74,20 @@ interface PackageStatus {
 }
 
 async function detectPackage(name: string): Promise<PackageStatus> {
+  // Try dynamic import first (for ESM packages)
   try {
     const pkg: any = await import(name);
-    const version = pkg.version || pkg.VERSION || 'unknown';
+    const version = pkg.version || pkg.VERSION || pkg.default?.version || 'unknown';
     return { name, available: true, version };
   } catch {
-    return { name, available: false };
+    // Fallback to require for CJS packages
+    try {
+      const pkg = require(name);
+      const version = pkg.version || pkg.VERSION || 'unknown';
+      return { name, available: true, version };
+    } catch {
+      return { name, available: false };
+    }
   }
 }
 
@@ -84,6 +95,7 @@ export async function detectANKRPackages(): Promise<Record<string, PackageStatus
   const packages = [
     '@ankr/eon',
     '@ankr/mcp-tools',
+    '@ankr/vibecoding-tools',
     '@ankr/ai-router',
     '@ankr/config',
     '@ankr/i18n',

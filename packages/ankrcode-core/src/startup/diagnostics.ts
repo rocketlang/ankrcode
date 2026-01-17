@@ -124,6 +124,7 @@ export async function runDiagnostics(
   const packageInfo: PackageInfo[] = [
     { name: '@ankr/eon', displayName: 'EON Memory', available: packages['@ankr/eon']?.available ?? false, version: packages['@ankr/eon']?.version },
     { name: '@ankr/mcp-tools', displayName: 'MCP Tools', available: packages['@ankr/mcp-tools']?.available ?? false, version: packages['@ankr/mcp-tools']?.version },
+    { name: '@ankr/vibecoding-tools', displayName: 'Vibecoding', available: packages['@ankr/vibecoding-tools']?.available ?? false, version: packages['@ankr/vibecoding-tools']?.version },
     { name: '@ankr/ai-router', displayName: 'AI Router', available: packages['@ankr/ai-router']?.available ?? false, version: packages['@ankr/ai-router']?.version },
     { name: '@ankr/config', displayName: 'Config', available: packages['@ankr/config']?.available ?? false, version: packages['@ankr/config']?.version },
     { name: '@ankr/i18n', displayName: 'i18n', available: packages['@ankr/i18n']?.available ?? false, version: packages['@ankr/i18n']?.version },
