@@ -861,6 +861,12 @@ export class BrowserAgent extends EventEmitter {
         return false;
       }
 
+      // Check for IDs starting with a digit - CSS identifiers cannot start with digits
+      // e.g., #0i1, #123abc are invalid
+      if (/#\d/.test(selector)) {
+        return false;
+      }
+
       // Check for unescaped spaces in ID selectors
       if (/#[^#\s\[]+\s+[^>+~]/.test(selector) && !selector.includes(' > ') && !selector.includes(' + ') && !selector.includes(' ~ ')) {
         return false;

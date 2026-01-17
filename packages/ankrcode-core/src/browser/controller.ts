@@ -407,8 +407,21 @@ export class BrowserController {
           });
         }
 
+        function isValidCssId(id) {
+          // CSS identifiers cannot start with a digit, two hyphens, or hyphen followed by digit
+          // Also reject IDs with colons (React-style) as they need escaping
+          if (!id) return false;
+          if (/^[0-9]/.test(id)) return false;  // starts with digit
+          if (/^--/.test(id)) return false;     // starts with --
+          if (/^-[0-9]/.test(id)) return false; // starts with -digit
+          if (/:/.test(id)) return false;       // contains colon (React IDs)
+          return true;
+        }
+
         function getUniqueSelector(el) {
-          if (el.id) return '#' + el.id;
+          // Only use ID if it's a valid CSS identifier
+          if (el.id && isValidCssId(el.id)) return '#' + el.id;
+
           if (el.className && typeof el.className === 'string') {
             const classes = el.className.split(' ').filter(c => c).slice(0, 2).join('.');
             if (classes) {
@@ -423,7 +436,8 @@ export class BrowserController {
           let current = el;
           while (current && current !== document.body) {
             let selector = current.tagName.toLowerCase();
-            if (current.id) {
+            // Only use ID if it's valid CSS
+            if (current.id && isValidCssId(current.id)) {
               selector = '#' + current.id;
               path.unshift(selector);
               break;
