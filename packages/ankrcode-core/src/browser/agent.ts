@@ -421,6 +421,15 @@ export class BrowserAgent extends EventEmitter {
     const goalLower = goal.toLowerCase();
     const goalWords = goalLower.split(/\s+/).filter(w => w.length > 2);
 
+    // Detect multi-step goals (goals with conjunctions or multiple actions)
+    const isMultiStepGoal = this.isMultiStepGoal(goal);
+
+    // For goto actions on multi-step goals, don't auto-complete just from navigation
+    // The user wants to do MORE than just navigate
+    if (action.type === 'goto' && isMultiStepGoal) {
+      return { completed: false, reason: 'Multi-step goal requires additional actions after navigation' };
+    }
+
     // 1. Click goals - check if we clicked on something matching the goal
     if (action.type === 'click') {
       const clickGoalPatterns = [
@@ -510,16 +519,23 @@ export class BrowserAgent extends EventEmitter {
     }
 
     // 4. Generic goal word matching - check if goal keywords appear in result
+    // Only use for single-step goals or after a click action (not just navigation)
     const significantUrlChange = afterState.url !== beforeState.url;
-    if (significantUrlChange) {
+    if (significantUrlChange && (action.type === 'click' || !isMultiStepGoal)) {
       const fullUrl = afterState.url.toLowerCase();
       const titleLower = afterState.title.toLowerCase();
-      const matchingWords = goalWords.filter(word =>
+
+      // Filter to only meaningful goal words (exclude common words and site names)
+      const meaningfulGoalWords = goalWords.filter(word =>
+        !['com', 'org', 'net', 'the', 'and', 'for', 'then', 'find', 'click', 'navigate', 'open', 'visit', 'section', 'page', 'link', 'button'].includes(word)
+      );
+
+      const matchingWords = meaningfulGoalWords.filter(word =>
         fullUrl.includes(word) || titleLower.includes(word)
       );
 
-      // More lenient: 1 match for short goals, 2 for longer goals
-      const requiredMatches = goalWords.length <= 4 ? 1 : 2;
+      // Require more matches for multi-step goals
+      const requiredMatches = isMultiStepGoal ? 2 : (meaningfulGoalWords.length <= 3 ? 1 : 2);
       if (matchingWords.length >= requiredMatches) {
         return {
           completed: true,
@@ -528,19 +544,28 @@ export class BrowserAgent extends EventEmitter {
       }
     }
 
-    // 5. If URL changed significantly (different domain or path), consider it progress
-    if (afterState.url !== beforeState.url) {
+    // 5. Domain navigation check - only for single-step navigation goals
+    // Don't complete just because we reached a site if there are more steps to do
+    if (!isMultiStepGoal && afterState.url !== beforeState.url) {
       try {
         const beforeHost = new URL(beforeState.url).hostname;
         const afterHost = new URL(afterState.url).hostname;
         // If we navigated to a different domain, check if it's relevant
         if (beforeHost !== afterHost) {
           const afterHostClean = afterHost.replace(/^www\./, '').toLowerCase();
-          if (goalWords.some(word => afterHostClean.includes(word))) {
-            return {
-              completed: true,
-              reason: `Navigated to relevant site: ${afterHost}`,
-            };
+          // Check if the goal is SPECIFICALLY about going to this site
+          const navOnlyPatterns = [
+            /^(?:go\s+to|visit|open|navigate\s+to)\s+(?:www\.)?([a-z0-9-]+(?:\.[a-z]+)+)$/i,
+            /^(?:go\s+to|visit|open)\s+([a-z0-9-]+)$/i,
+          ];
+          for (const pattern of navOnlyPatterns) {
+            const match = goal.match(pattern);
+            if (match && afterHostClean.includes(match[1].toLowerCase().replace(/\.[a-z]+$/, ''))) {
+              return {
+                completed: true,
+                reason: `Navigated to ${afterHost}`,
+              };
+            }
           }
         }
       } catch {
@@ -549,6 +574,43 @@ export class BrowserAgent extends EventEmitter {
     }
 
     return { completed: false, reason: 'Goal not yet completed' };
+  }
+
+  /**
+   * Detect if a goal has multiple steps/actions
+   */
+  private isMultiStepGoal(goal: string): boolean {
+    const goalLower = goal.toLowerCase();
+
+    // Check for conjunctions that indicate multiple steps
+    const multiStepIndicators = [
+      /\s+and\s+/,           // "go to X and click Y"
+      /\s+then\s+/,          // "go to X then click Y"
+      /,\s*then\s+/,         // "go to X, then click Y"
+      /,\s*and\s+/,          // "go to X, and click Y"
+      /\.\s+then\s+/i,       // "Go to X. Then click Y"
+    ];
+
+    for (const pattern of multiStepIndicators) {
+      if (pattern.test(goalLower)) {
+        return true;
+      }
+    }
+
+    // Check for multiple action verbs
+    const actionVerbs = ['go', 'navigate', 'visit', 'open', 'click', 'find', 'search', 'type', 'enter', 'select', 'choose', 'scroll', 'read'];
+    let verbCount = 0;
+    for (const verb of actionVerbs) {
+      // Match verb at word boundary
+      const verbPattern = new RegExp(`\\b${verb}\\b`, 'gi');
+      const matches = goalLower.match(verbPattern);
+      if (matches) {
+        verbCount += matches.length;
+      }
+    }
+
+    // More than one action verb suggests multi-step
+    return verbCount >= 2;
   }
 
   /**
