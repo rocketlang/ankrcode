@@ -190,15 +190,68 @@ Respond with JSON only: {"completed": true/false, "reason": "explanation"}`;
     // Fall back to heuristics
   }
 
-  // Heuristic checks
+  // Enhanced heuristic checks
   const goalLower = goal.toLowerCase();
+  const urlLower = pageState.url.toLowerCase();
+  const titleLower = pageState.title.toLowerCase();
 
-  // Check for navigation goals
-  if (goalLower.includes('go to')) {
-    const targetMatch = goal.match(/go to (\S+)/i);
-    if (targetMatch && pageState.url.includes(targetMatch[1])) {
-      return { completed: true, reason: 'Successfully navigated to target URL' };
+  // Extract significant words from goal (3+ chars, not common words)
+  const stopWords = ['the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'are', 'was', 'were', 'been', 'being', 'page', 'link', 'button'];
+  const goalWords = goalLower.split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.includes(w));
+
+  // 1. Check for navigation goals
+  const navPatterns = [
+    /(?:go\s+to|navigate\s+to|open|visit|find)\s+(?:the\s+)?(.+?)(?:\s+page)?$/i,
+  ];
+
+  for (const pattern of navPatterns) {
+    const match = goal.match(pattern);
+    if (match) {
+      const target = match[1].toLowerCase().trim();
+      const targetVariants = [
+        target,
+        target.replace(/\s+/g, ''),
+        target.replace(/\s+/g, '-'),
+        target.replace(/\s+/g, '_'),
+      ];
+
+      for (const variant of targetVariants) {
+        if (urlLower.includes(variant) || titleLower.includes(variant)) {
+          return { completed: true, reason: `Navigated to ${target}` };
+        }
+      }
     }
+  }
+
+  // 2. Check for click goals - if URL changed, likely completed
+  if (goalLower.includes('click')) {
+    const clickMatch = goal.match(/click\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+link|\s+button)?$/i);
+    if (clickMatch) {
+      const target = clickMatch[1].toLowerCase();
+      // If URL or title contains any target words, probably succeeded
+      if (target.split(/\s+/).some(word =>
+        word.length > 3 && (urlLower.includes(word) || titleLower.includes(word))
+      )) {
+        return { completed: true, reason: `Clicked and navigated successfully` };
+      }
+    }
+  }
+
+  // 3. Check for search goals
+  if (goalLower.includes('search')) {
+    if (urlLower.includes('search') || urlLower.includes('q=') || urlLower.includes('query=')) {
+      return { completed: true, reason: 'Search performed' };
+    }
+  }
+
+  // 4. Generic: Check if multiple goal keywords appear in URL/title
+  const matchingWords = goalWords.filter(word =>
+    urlLower.includes(word) || titleLower.includes(word)
+  );
+
+  if (matchingWords.length >= 2) {
+    return { completed: true, reason: `Page matches goal: ${matchingWords.join(', ')}` };
   }
 
   return { completed: false, reason: 'Goal completion could not be verified' };

@@ -203,6 +203,20 @@ export class BrowserAgent extends EventEmitter {
           if (task.verbose) {
             console.log(`   ✓ Success`);
           }
+
+          // Proactive goal completion check after successful action
+          const postActionState = await this.controller.getPageState();
+          const goalCompleted = this.checkGoalCompletion(task.goal, action, pageState, postActionState);
+
+          if (goalCompleted.completed) {
+            steps.push(step);
+            success = true;
+
+            if (task.verbose) {
+              console.log(`\n✅ Goal completed: ${goalCompleted.reason}`);
+            }
+            break;
+          }
         } else {
           step.observation = `Failed: ${result.error}`;
           previousStepDescriptions.push(`Failed to ${action.type}: ${result.error}`);
@@ -273,6 +287,164 @@ export class BrowserAgent extends EventEmitter {
     }
 
     return result;
+  }
+
+  /**
+   * Check if the goal has been completed based on heuristics
+   */
+  private checkGoalCompletion(
+    goal: string,
+    action: BrowserAction,
+    beforeState: PageState,
+    afterState: PageState
+  ): { completed: boolean; reason: string } {
+    const goalLower = goal.toLowerCase();
+    const goalWords = goalLower.split(/\s+/).filter(w => w.length > 2);
+
+    // 1. Click goals - check if we clicked on something matching the goal
+    if (action.type === 'click') {
+      const clickGoalPatterns = [
+        /click\s+(on\s+)?(the\s+)?(.+?)(\s+link|\s+button|\s+element)?$/i,
+        /press\s+(the\s+)?(.+?)(\s+button)?$/i,
+        /tap\s+(on\s+)?(the\s+)?(.+)/i,
+        /select\s+(the\s+)?(.+)/i,
+      ];
+
+      for (const pattern of clickGoalPatterns) {
+        const match = goal.match(pattern);
+        if (match) {
+          const targetText = (match[3] || match[2] || '').toLowerCase().trim();
+          // Check if we navigated to a new page after click
+          if (afterState.url !== beforeState.url) {
+            return {
+              completed: true,
+              reason: `Clicked and navigated to ${afterState.url}`,
+            };
+          }
+          // Check if selector or page content matches target
+          if (action.selector && this.selectorMatchesTarget(action.selector, targetText, beforeState)) {
+            return {
+              completed: true,
+              reason: `Clicked on element matching "${targetText}"`,
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Navigation goals - check URL changes
+    if (action.type === 'goto' || action.type === 'click') {
+      const navGoalPatterns = [
+        /(?:go\s+to|navigate\s+to|open|visit)\s+(?:the\s+)?(.+?)(?:\s+page)?$/i,
+        /find\s+(?:the\s+)?(.+?)(?:\s+page)?$/i,
+      ];
+
+      for (const pattern of navGoalPatterns) {
+        const match = goal.match(pattern);
+        if (match) {
+          const targetPage = match[1].toLowerCase().trim();
+          const urlLower = afterState.url.toLowerCase();
+          const titleLower = afterState.title.toLowerCase();
+
+          // Check if URL or title contains the target
+          if (urlLower.includes(targetPage.replace(/\s+/g, '')) ||
+              urlLower.includes(targetPage.replace(/\s+/g, '-')) ||
+              urlLower.includes(targetPage.replace(/\s+/g, '_')) ||
+              titleLower.includes(targetPage)) {
+            return {
+              completed: true,
+              reason: `Navigated to ${targetPage} page`,
+            };
+          }
+        }
+      }
+    }
+
+    // 3. Search/Type goals - check if we typed and submitted
+    if (action.type === 'type' || action.type === 'press') {
+      const searchGoalPatterns = [
+        /search\s+(?:for\s+)?['"]?(.+?)['"]?$/i,
+        /type\s+['"]?(.+?)['"]?$/i,
+        /enter\s+['"]?(.+?)['"]?$/i,
+      ];
+
+      for (const pattern of searchGoalPatterns) {
+        const match = goal.match(pattern);
+        if (match) {
+          // If we pressed Enter after typing, goal is likely complete
+          if (action.type === 'press' && action.key?.toLowerCase() === 'enter') {
+            return {
+              completed: true,
+              reason: `Submitted search/form`,
+            };
+          }
+          // If URL changed after typing (form submission), goal complete
+          if (afterState.url !== beforeState.url && afterState.url.includes('search')) {
+            return {
+              completed: true,
+              reason: `Search submitted - now on search results`,
+            };
+          }
+        }
+      }
+    }
+
+    // 4. Generic goal word matching - check if goal keywords appear in result
+    const significantUrlChange = afterState.url !== beforeState.url;
+    if (significantUrlChange) {
+      const fullUrl = afterState.url.toLowerCase();
+      const titleLower = afterState.title.toLowerCase();
+      const matchingWords = goalWords.filter(word =>
+        fullUrl.includes(word) || titleLower.includes(word)
+      );
+
+      // More lenient: 1 match for short goals, 2 for longer goals
+      const requiredMatches = goalWords.length <= 4 ? 1 : 2;
+      if (matchingWords.length >= requiredMatches) {
+        return {
+          completed: true,
+          reason: `Page matches goal keywords: ${matchingWords.join(', ')}`,
+        };
+      }
+    }
+
+    // 5. If URL changed significantly (different domain or path), consider it progress
+    if (afterState.url !== beforeState.url) {
+      try {
+        const beforeHost = new URL(beforeState.url).hostname;
+        const afterHost = new URL(afterState.url).hostname;
+        // If we navigated to a different domain, check if it's relevant
+        if (beforeHost !== afterHost) {
+          const afterHostClean = afterHost.replace(/^www\./, '').toLowerCase();
+          if (goalWords.some(word => afterHostClean.includes(word))) {
+            return {
+              completed: true,
+              reason: `Navigated to relevant site: ${afterHost}`,
+            };
+          }
+        }
+      } catch {
+        // URL parsing failed, continue
+      }
+    }
+
+    return { completed: false, reason: 'Goal not yet completed' };
+  }
+
+  /**
+   * Check if a selector matches the target text from the goal
+   */
+  private selectorMatchesTarget(selector: string, targetText: string, pageState: PageState): boolean {
+    const targetWords = targetText.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+
+    // Find the element that was clicked
+    const element = pageState.elements.find(el => el.selector === selector);
+    if (!element) return false;
+
+    const elementText = (element.text || element.ariaLabel || '').toLowerCase();
+
+    // Check if element text contains target words
+    return targetWords.some(word => elementText.includes(word));
   }
 
   /**
