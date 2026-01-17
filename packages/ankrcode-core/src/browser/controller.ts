@@ -312,7 +312,10 @@ export class BrowserController {
           return path.join(' > ');
         }
 
-        return allElements.slice(0, 50);
+        // Prioritize inputs by putting them first, then other elements
+        const inputs = allElements.filter(el => el.tagName === 'input' || el.tagName === 'textarea');
+        const others = allElements.filter(el => el.tagName !== 'input' && el.tagName !== 'textarea');
+        return [...inputs, ...others].slice(0, 50);
       })()
     `);
 

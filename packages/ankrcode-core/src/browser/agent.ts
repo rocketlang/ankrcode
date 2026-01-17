@@ -14,6 +14,7 @@ import type {
   BrowserStatus,
   BrowserAction,
   PageState,
+  ElementInfo,
 } from './types.js';
 
 const MAX_STEPS = 20;
@@ -155,9 +156,89 @@ export class BrowserAgent extends EventEmitter {
           break;
         }
 
+        // Early search check: On first step, if there's a search box and goal seems searchable,
+        // proactively use search instead of clicking around
+        const inputsOnPage = pageState.elements.filter(el => el.tagName === 'input');
+        if (task.verbose && stepNum === 1) {
+          console.log(`   📋 Inputs on page: ${inputsOnPage.length}`);
+          if (inputsOnPage.length > 0) {
+            inputsOnPage.slice(0, 3).forEach(el => {
+              console.log(`      - ${el.selector} (type=${el.type}, placeholder="${el.placeholder || ''}")`);
+            });
+          }
+        }
+
+        if (stepNum === 1 && this.shouldUseSearchFirst(task.goal, pageState)) {
+          const searchAction = this.trySearchBoxFallback(task.goal, pageState, []);
+          if (searchAction) {
+            if (task.verbose) {
+              console.log(`   🔍 Using search directly for: "${searchAction.value}"`);
+            }
+
+            const result = await this.controller.execute(searchAction);
+            if (result.success) {
+              await this.controller.execute({ type: 'press', key: 'Enter' });
+              await this.controller.execute({ type: 'wait', timeout: 2000 });
+
+              const step: BrowseStep = {
+                stepNumber: stepNum,
+                thought: 'Using search to find goal directly',
+                action: searchAction,
+                screenshot,
+                success: true,
+                observation: `Searched for: ${searchAction.value}`,
+              };
+              steps.push(step);
+              previousStepDescriptions.push(`Searched for "${searchAction.value}"`);
+
+              if (task.verbose) {
+                console.log(`   ⏎ Pressed Enter to submit search`);
+                console.log(`   ✓ Success`);
+              }
+
+              // Check if goal completed after search
+              const postSearchState = await this.controller.getPageState();
+              const goalCompleted = this.checkGoalCompletion(task.goal, searchAction, pageState, postSearchState);
+              if (goalCompleted.completed) {
+                success = true;
+                if (task.verbose) {
+                  console.log(`\n✅ Goal completed: ${goalCompleted.reason}`);
+                }
+                break;
+              }
+              continue;
+            }
+          }
+        }
+
         // 3. Execute suggested action (Act)
         if (!analysis.suggestedNextAction) {
-          // No action suggested, try scrolling to find more content
+          // No action suggested - try search box fallback before scrolling
+          const searchFallback = this.trySearchBoxFallback(task.goal, pageState, previousStepDescriptions);
+
+          if (searchFallback) {
+            const step: BrowseStep = {
+              stepNumber: stepNum,
+              thought: 'No direct link found, using search box fallback',
+              action: searchFallback,
+              screenshot,
+              success: true,
+            };
+            steps.push(step);
+            previousStepDescriptions.push(`Typed "${searchFallback.value}" into search box`);
+
+            if (task.verbose) {
+              console.log(`   🔍 Search fallback: typing "${searchFallback.value}" into ${searchFallback.selector}`);
+            }
+
+            await this.controller.execute(searchFallback);
+            // Press Enter to submit search
+            await this.controller.execute({ type: 'press', key: 'Enter' });
+            await this.controller.execute({ type: 'wait', timeout: 2000 });
+            continue;
+          }
+
+          // No search box either, scroll to find more content
           const scrollAction: BrowserAction = { type: 'scroll', direction: 'down', amount: 300 };
 
           const step: BrowseStep = {
@@ -175,6 +256,25 @@ export class BrowserAgent extends EventEmitter {
         }
 
         let action = analysis.suggestedNextAction;
+
+        // Check if action is a scroll - try search fallback first if we haven't searched yet
+        let usedSearchFallback = false;
+        if (action.type === 'scroll' && !previousStepDescriptions.some(s => s.includes('search box') || s.includes('Typed'))) {
+          const searchFallback = this.trySearchBoxFallback(task.goal, pageState, previousStepDescriptions);
+
+          if (searchFallback) {
+            if (task.verbose) {
+              console.log(`   🔍 Search fallback: using search instead of scroll`);
+              console.log(`   📝 Will type "${searchFallback.value}" into ${searchFallback.selector}`);
+            }
+            action = searchFallback;
+            usedSearchFallback = true;
+          } else if (task.verbose) {
+            // Debug: show why search fallback didn't work
+            const inputCount = pageState.elements.filter(el => el.tagName === 'input').length;
+            console.log(`   ℹ️  No search fallback available (${inputCount} inputs found)`);
+          }
+        }
 
         // Validate and fix selector if needed
         if (action.selector) {
@@ -204,8 +304,17 @@ export class BrowserAgent extends EventEmitter {
         };
 
         if (result.success) {
-          // Wait for page to update
-          await this.controller.execute({ type: 'wait', timeout: 1500 });
+          // If we used search fallback, press Enter to submit
+          if (usedSearchFallback && action.type === 'type') {
+            await this.controller.execute({ type: 'press', key: 'Enter' });
+            await this.controller.execute({ type: 'wait', timeout: 2000 });
+            if (task.verbose) {
+              console.log(`   ⏎ Pressed Enter to submit search`);
+            }
+          } else {
+            // Wait for page to update
+            await this.controller.execute({ type: 'wait', timeout: 1500 });
+          }
 
           const actionDesc = this.describeAction(action);
           previousStepDescriptions.push(actionDesc);
@@ -440,6 +549,175 @@ export class BrowserAgent extends EventEmitter {
     }
 
     return { completed: false, reason: 'Goal not yet completed' };
+  }
+
+  /**
+   * Determine if we should use search proactively on first step
+   */
+  private shouldUseSearchFirst(goal: string, pageState: PageState): boolean {
+    const goalLower = goal.toLowerCase();
+
+    // Goals that suggest search is appropriate
+    const searchIndicators = [
+      'find information',
+      'find the',
+      'search for',
+      'look for',
+      'looking for',
+      'information about',
+      'learn about',
+      'documentation for',
+      'tutorial for',
+      'how to',
+    ];
+
+    const hasSearchIndicator = searchIndicators.some(indicator => goalLower.includes(indicator));
+    if (!hasSearchIndicator) {
+      return false;
+    }
+
+    // Check if there's a search box
+    const searchInput = this.findSearchInput(pageState);
+    return searchInput !== null;
+  }
+
+  /**
+   * Try to find a search box and use it as a fallback when no direct links are found
+   */
+  private trySearchBoxFallback(
+    goal: string,
+    pageState: PageState,
+    previousSteps: string[]
+  ): BrowserAction | null {
+    // Don't use search fallback if we already searched
+    if (previousSteps.some(s => s.toLowerCase().includes('search') || s.toLowerCase().includes('typed'))) {
+      return null;
+    }
+
+    // Find search input elements
+    const searchInput = this.findSearchInput(pageState);
+    if (!searchInput) {
+      return null;
+    }
+
+    // Extract search keywords from goal
+    const searchQuery = this.extractSearchQuery(goal);
+    if (!searchQuery) {
+      return null;
+    }
+
+    return {
+      type: 'type',
+      selector: searchInput.selector,
+      value: searchQuery,
+    };
+  }
+
+  /**
+   * Find a search input element on the page
+   */
+  private findSearchInput(pageState: PageState): ElementInfo | null {
+    // Filter to only input elements first
+    const inputElements = pageState.elements.filter(el =>
+      el.tagName === 'input' || el.tagName === 'textarea'
+    );
+
+    // Priority order for finding search inputs
+    const searchPatterns = [
+      // 1. Explicit search type
+      (el: ElementInfo) => el.type === 'search',
+      // 2. ID contains 'search' or 'query'
+      (el: ElementInfo) => {
+        const selectorLower = el.selector.toLowerCase();
+        return selectorLower.includes('#') && (
+          selectorLower.includes('search') ||
+          selectorLower.includes('query') ||
+          selectorLower.includes('[name="q"]') ||
+          selectorLower.includes('[name="s"]') ||
+          selectorLower.includes('#q') ||
+          selectorLower.includes('#s')
+        );
+      },
+      // 3. Placeholder mentions search
+      (el: ElementInfo) =>
+        el.placeholder?.toLowerCase().includes('search') ||
+        el.placeholder?.toLowerCase().includes('find'),
+      // 4. Aria label mentions search
+      (el: ElementInfo) =>
+        el.ariaLabel?.toLowerCase().includes('search') ||
+        el.ariaLabel?.toLowerCase().includes('find'),
+      // 5. Class contains search
+      (el: ElementInfo) => {
+        const selectorLower = el.selector.toLowerCase();
+        return selectorLower.includes('.search') ||
+               selectorLower.includes('searchbox') ||
+               selectorLower.includes('searchinput');
+      },
+      // 6. Any visible text input (last resort, but only if it looks like a search)
+      (el: ElementInfo) =>
+        el.tagName === 'input' &&
+        (el.type === 'text' || el.type === '' || !el.type) &&
+        el.isVisible &&
+        el.isEnabled &&
+        el.placeholder && // Must have a placeholder
+        el.placeholder.length < 50, // Short placeholder (likely a search)
+    ];
+
+    for (const pattern of searchPatterns) {
+      const match = inputElements.find(pattern);
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract a search query from the goal
+   */
+  private extractSearchQuery(goal: string): string | null {
+    const goalLower = goal.toLowerCase();
+
+    // Common goal patterns and their search extractions
+    const patterns = [
+      // "Find X" → search for "X"
+      /find\s+(?:the\s+)?(?:information\s+(?:about|on|for)\s+)?(.+?)(?:\s+page)?$/i,
+      // "Navigate to X" → search for "X"
+      /navigate\s+to\s+(?:the\s+)?(.+?)(?:\s+page)?$/i,
+      // "Go to X" → search for "X"
+      /go\s+to\s+(?:the\s+)?(.+?)(?:\s+page)?$/i,
+      // "Search for X" → search for "X"
+      /search\s+(?:for\s+)?(.+)/i,
+      // "Look for X" → search for "X"
+      /look\s+(?:for\s+)?(.+)/i,
+      // "Click on X" → search for "X"
+      /click\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+link|\s+button)?$/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = goal.match(pattern);
+      if (match && match[1]) {
+        let query = match[1].trim();
+        // Clean up common suffixes
+        query = query.replace(/\s+(link|button|page|section|menu|tab)$/i, '');
+        if (query.length >= 2) {
+          return query;
+        }
+      }
+    }
+
+    // Fallback: extract significant words from goal
+    const stopWords = ['the', 'a', 'an', 'to', 'for', 'on', 'in', 'of', 'and', 'or', 'find', 'go', 'navigate', 'click', 'search', 'look', 'page', 'link', 'button'];
+    const words = goalLower
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !stopWords.includes(w));
+
+    if (words.length > 0) {
+      return words.slice(0, 3).join(' ');
+    }
+
+    return null;
   }
 
   /**
