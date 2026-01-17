@@ -233,4 +233,4 @@ export type {
 } from './browser/index.js';
 
 // Version
-export const VERSION = '2.41.0';
+export const VERSION = '2.42.0';
