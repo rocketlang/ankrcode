@@ -29,6 +29,7 @@ export { webFetchTool, webSearchTool } from './core/web.js';
 export { enterPlanModeTool, exitPlanModeTool } from './core/plan.js';
 export { skillTool } from './core/skill.js';
 export { notebookEditTool, notebookReadTool } from './core/notebook.js';
+export { aleOptimizeTool, aleQuickTool, aleStatusTool } from './core/ale.js';
 
 // Utilities
 export { hasRecentlyRead, markAsRead } from './core/file.js';

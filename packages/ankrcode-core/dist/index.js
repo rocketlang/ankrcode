@@ -1,0 +1,44 @@
+/**
+ * AnkrCode Core
+ * AI Coding Assistant for Bharat
+ */
+// Types
+export * from './types.js';
+// Tools
+export { registry, registerTool, getTool, getAllTools, getToolDefinitions, executor, executeTool, executeToolsParallel, } from './tools/index.js';
+// Conversation
+export { ConversationManager } from './conversation/manager.js';
+// Config
+export { loadConfig, getConfig, getSettings, getProjectRules, saveGlobalSettings, saveProjectSettings, initProject, isCommandAllowed, isToolEnabled, getHooks, invalidateConfig, getConfigSummary, } from './config/index.js';
+// Permissions
+export { isDangerousCommand, isProtectedPath, hasSessionApproval, grantSessionPermission, revokeSessionPermission, clearSessionPermissions, checkCommandPermission, checkFileWritePermission, checkFileDeletePermission, formatPermissionPrompt, getPermissionSummary, } from './config/permissions.js';
+// Swayam Integration
+export { SwayamAdapter, createSwayamAdapter, } from './swayam/index.js';
+// Adapters
+export { AIRouterAdapter, getAIRouterAdapter } from './ai/router-adapter.js';
+export { OfflineAdapter, getOfflineAdapter } from './ai/offline-adapter.js';
+export { EONAdapter, getEONAdapter, remember, recall } from './memory/eon-adapter.js';
+export { MCPAdapter, getMCPAdapter, registerMCPToolsToRegistry } from './mcp/adapter.js';
+export { VoiceAdapter, getVoiceAdapter, parseVoiceCommand } from './voice/adapter.js';
+// Unified Adapter (ANKR-First Architecture)
+export { createUnifiedAdapter, UnifiedLLMAdapter, UnifiedMemoryAdapter, UnifiedMCPAdapter, detectANKRPackages, checkAllServices, } from './adapters/index.js';
+// Startup & Diagnostics
+export { runDiagnostics, formatDiagnostics, printDiagnostics, quickCheck, getDoctorCommand, } from './startup/index.js';
+// MCP Discovery
+export { MCPDiscovery, getDiscovery, discoverMCPTools, formatToolList, CORE_TOOLS, } from './mcp/discovery.js';
+// Plugins
+export { pluginManager, loadPlugin, loadPackagePlugin, getPlugins, getPlugin, initializePlugins, createPlugin, gitPlugin, dockerPlugin, } from './plugins/index.js';
+// Workflow Engine (v2.39)
+export { runWorkflow, loadWorkflow, saveWorkflow, listWorkflows, deleteWorkflow, getWorkflowTemplates, createFromTemplate, } from './workflow/index.js';
+// Autonomous Agents (v2.39)
+export { agentManager, spawnAgent, stopAgent, getAgent, listAgents, getAgentTypes, } from './agents/index.js';
+// Shell Completions (v2.40)
+export { getBashCompletion, getZshCompletion, getFishCompletion, installCompletion, detectShell, getCompletionInstallPath, } from './completions/index.js';
+// Browser / Computer Use (v2.41)
+export { browse, getBrowserAgent, BrowserAgent, BrowserController, getBrowserController, closeBrowser, analyzeScreenshot, isGoalCompleted, } from './browser/index.js';
+// ALE - Agentic Learning Engine (v2.43)
+// Inspired by Sakana AI's ALE-Agent (AtCoder AHC058 winner)
+export { ALEEngine, aleEngine, optimize, stopOptimization, getOptimizationSession, listOptimizations, quickOptimize, VirtualPowerScorer, virtualPowerScorer, calculateVirtualPower, InsightsGenerator, insightsGenerator, generateInsights, summarizeInsights, SolutionSpaceExplorer, solutionSpaceExplorer, exploreSolutionSpace, WorkingMemory, workingMemory, recallFailedStrategies, storeFailedStrategy, buildWorkingMemoryContext, ALE_VERSION, } from './ale/index.js';
+// Version
+export const VERSION = '2.43.0';
+//# sourceMappingURL=index.js.map

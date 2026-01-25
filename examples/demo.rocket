@@ -1,0 +1,65 @@
+# RocketLang Demo Script
+# रॉकेटलैंग डेमो स्क्रिप्ट
+
+# ===== File Operations =====
+
+# Read a file (English)
+read package.json
+
+# Read a file (Hindi transliterated)
+padho src/index.ts
+
+# Search for pattern
+search "function" in src/
+
+# Find all TypeScript files
+find **/*.ts
+
+# ===== Git Operations =====
+
+# Commit changes (code-switching style)
+commit "bug fix किया auth में"
+
+# Push to remote
+push origin main
+
+# ===== Code Generation =====
+
+# Create a function (English)
+create function that validates email address
+
+# Create a function (Hindi)
+ek function banao jo phone number validate kare
+
+# Create API (code-switching)
+API banao users ke liye with CRUD operations
+
+# Create React component
+create component for login form with validation
+
+# ===== Bash Commands =====
+
+# Direct bash (prefix with $)
+$ npm test
+$ git status
+$ ls -la
+
+# Run command (English)
+run npm run build
+
+# Run command (Hindi style)
+chalao npm install express
+
+# ===== Natural Language =====
+
+# These will be sent to the LLM for processing
+मुझे एक REST API चाहिए users के लिए
+Help me debug the authentication issue
+इस code को refactor करो
+
+# ===== Comments =====
+
+# Single line comment (English)
+// JavaScript style comment also works
+
+# End of demo

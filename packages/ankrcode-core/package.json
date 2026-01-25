@@ -1,0 +1,109 @@
+{
+  "name": "@ankr/ankrcode-core",
+  "version": "2.43.0",
+  "description": "AnkrCode - AI Coding Assistant for Bharat (Indic-first, Voice-enabled, RocketLang-powered)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ankrcode": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mcp": {
+      "import": "./dist/mcp/adapter.js",
+      "types": "./dist/mcp/adapter.d.ts"
+    },
+    "./memory": {
+      "import": "./dist/memory/eon-adapter.js",
+      "types": "./dist/memory/eon-adapter.d.ts"
+    },
+    "./voice": {
+      "import": "./dist/voice/adapter.js",
+      "types": "./dist/voice/adapter.d.ts"
+    },
+    "./ai": {
+      "import": "./dist/ai/router-adapter.js",
+      "types": "./dist/ai/router-adapter.d.ts"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ankr-labs/ankrcode.git",
+    "directory": "packages/ankrcode-core"
+  },
+  "bugs": {
+    "url": "https://github.com/ankr-labs/ankrcode/issues"
+  },
+  "homepage": "https://github.com/ankr-labs/ankrcode#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "ANKRCODE.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "ai",
+    "coding-assistant",
+    "cli",
+    "indic",
+    "hindi",
+    "voice",
+    "india",
+    "claude-code",
+    "ankr"
+  ],
+  "author": "ANKR Labs",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "fast-glob": "^3.3.0",
+    "ora": "^8.0.0",
+    "playwright": "^1.57.0",
+    "turndown": "^7.1.2",
+    "yaml": "^2.8.2"
+  },
+  "optionalDependencies": {
+    "@vscode/ripgrep": "^1.15.0",
+    "@ankr/mcp-tools": "file:../../../ankr-labs-nx/packages/mcp-tools",
+    "@ankr/vibecoding-tools": "file:../../../ankr-labs-nx/packages/vibecoding-tools",
+    "@ankr/config": "file:../../../ankr-labs-nx/libs/ankr-config",
+    "@ankr/i18n": "file:../../../ankr-labs-nx/packages/ankr-i18n"
+  },
+  "peerDependencies": {
+    "@ankr/ai-router": ">=2.0.0",
+    "@ankr/eon": ">=3.0.0",
+    "@powerpbox/mcp": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ankr/ai-router": {
+      "optional": true
+    },
+    "@ankr/eon": {
+      "optional": true
+    },
+    "@powerpbox/mcp": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/turndown": "^5.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

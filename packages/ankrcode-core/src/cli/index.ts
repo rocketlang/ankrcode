@@ -54,6 +54,16 @@ import {
   detectShell,
 } from '../completions/index.js';
 import { browse, getBrowserAgent } from '../browser/index.js';
+import {
+  optimize,
+  quickOptimize,
+  stopOptimization,
+  getOptimizationSession,
+  listOptimizations,
+  summarizeInsights,
+  buildWorkingMemoryContext,
+} from '../ale/index.js';
+import type { ExplorationStrategy } from '../ale/types.js';
 
 const program = new Command();
 
@@ -1475,6 +1485,26 @@ program
   .option('--save-screenshots', 'Save screenshots of each step')
   .action(async (goal, options) => {
     await runBrowseCommand(goal, options);
+  });
+
+// ALE command (v2.43) - Agentic Learning Engine
+program
+  .command('ale')
+  .description('ALE - Agentic Learning Engine for multi-trial optimization')
+  .argument('[action]', 'Action: optimize, quick, list, status, stop, insights')
+  .argument('[target]', 'Task description or session ID')
+  .option('-t, --task <task>', 'Task to optimize')
+  .option('-o, --objective <objective>', 'Optimization objective')
+  .option('-c, --constraints <constraints>', 'Constraints (comma-separated)')
+  .option('-s, --strategy <strategy>', 'Strategy: greedy, annealing, hybrid, beam, evolutionary', 'hybrid')
+  .option('--trials <n>', 'Maximum trials', '50')
+  .option('--timeout <seconds>', 'Timeout in seconds', '300')
+  .option('--target-score <score>', 'Stop when this score is reached (0-1)', '0.95')
+  .option('--vp-weight <weight>', 'Virtual Power weight (0-1)', '0.3')
+  .option('-p, --preset <preset>', 'Quick preset: fast, balanced, thorough', 'balanced')
+  .option('--verbose', 'Verbose output')
+  .action(async (action, target, options) => {
+    await runAleCommand(action, target, options);
   });
 
 program.parse();
@@ -27066,6 +27096,270 @@ async function runBrowseCommand(goal: string, options: BrowseOptions): Promise<v
       console.log(chalk.yellow('\nPlaywright not installed. Run:'));
       console.log(chalk.dim('  npm install playwright'));
       console.log(chalk.dim('  npx playwright install chromium'));
+    }
+  }
+}
+
+// ALE command options interface
+interface AleOptions {
+  task?: string;
+  objective?: string;
+  constraints?: string;
+  strategy?: string;
+  trials?: string;
+  timeout?: string;
+  targetScore?: string;
+  vpWeight?: string;
+  preset?: string;
+  verbose?: boolean;
+}
+
+async function runAleCommand(
+  action: string | undefined,
+  target: string | undefined,
+  options: AleOptions
+): Promise<void> {
+  const ora = (await import('ora')).default;
+  const spinner = ora();
+
+  switch (action) {
+    case 'optimize': {
+      const task = options.task || target;
+      if (!task) {
+        console.log(chalk.red('Error: Please specify a task with --task or as argument'));
+        console.log(chalk.dim('Example: ankrcode ale optimize --task "Optimize caching" --objective "Maximize hit rate"'));
+        return;
+      }
+
+      if (!options.objective) {
+        console.log(chalk.red('Error: Please specify an objective with --objective'));
+        return;
+      }
+
+      console.log(chalk.cyan('\n🧠 ALE - Agentic Learning Engine\n'));
+      console.log(chalk.dim('Multi-trial optimization inspired by Sakana AI\'s ALE-Agent'));
+      console.log('─'.repeat(50));
+      console.log(chalk.white(`Task: ${task}`));
+      console.log(chalk.white(`Objective: ${options.objective}`));
+      console.log(chalk.white(`Strategy: ${options.strategy || 'hybrid'}`));
+      console.log(chalk.white(`Max Trials: ${options.trials || '50'}`));
+      console.log('─'.repeat(50) + '\n');
+
+      spinner.start('Running optimization...');
+
+      try {
+        const constraints = options.constraints ? options.constraints.split(',').map(c => c.trim()) : [];
+
+        const result = await optimize({
+          task,
+          objective: options.objective,
+          constraints,
+          strategy: (options.strategy || 'hybrid') as ExplorationStrategy,
+          maxTrials: parseInt(options.trials || '50'),
+          maxDuration: parseInt(options.timeout || '300') * 1000,
+          targetScore: parseFloat(options.targetScore || '0.95'),
+          virtualPowerWeight: parseFloat(options.vpWeight || '0.3'),
+          useWorkingMemory: true,
+          storeInsights: true,
+          onProgressUpdate: (progress) => {
+            spinner.text = `Trial ${progress.currentTrial}/${progress.totalTrials} | Best: ${progress.bestScore.toFixed(3)} | Phase: ${progress.currentPhase}`;
+          },
+        });
+
+        spinner.stop();
+
+        console.log('\n' + '─'.repeat(50));
+        if (result.success) {
+          console.log(chalk.green('✅ Target Score Achieved!\n'));
+        } else {
+          console.log(chalk.yellow('⚡ Optimization Complete (Best Effort)\n'));
+        }
+
+        console.log(chalk.white('Results:'));
+        console.log(`  Best Score:     ${chalk.green(result.bestScore.totalScore.toFixed(4))}`);
+        console.log(`    Immediate:    ${result.bestScore.immediateScore.toFixed(4)}`);
+        console.log(`    Virtual Power: ${result.bestScore.virtualPowerScore.toFixed(4)}`);
+        console.log(`  Trials Run:     ${result.totalTrials}`);
+        console.log(`  Duration:       ${(result.totalDuration / 1000).toFixed(1)}s`);
+        console.log(`  Improvement:    +${result.scoreImprovement.toFixed(4)}`);
+        console.log(`  Stop Reason:    ${result.stoppedReason}`);
+
+        console.log(chalk.white('\nBest Solution:'));
+        console.log(chalk.dim('─'.repeat(40)));
+        console.log(result.bestSolution.content);
+        console.log(chalk.dim('─'.repeat(40)));
+
+        if (result.insights.length > 0) {
+          console.log(chalk.white(`\nInsights Learned (${result.insights.length}):`));
+          result.insights.slice(0, 5).forEach(i => {
+            const icon = i.type === 'success' ? chalk.green('✓') :
+              i.type === 'failure' ? chalk.red('✗') :
+                i.type === 'pattern' ? chalk.blue('◆') : chalk.dim('•');
+            console.log(`  ${icon} ${i.content.slice(0, 80)}...`);
+          });
+          if (result.insights.length > 5) {
+            console.log(chalk.dim(`  ... and ${result.insights.length - 5} more`));
+          }
+        }
+
+      } catch (err) {
+        spinner.fail('Optimization failed');
+        console.log(chalk.red(`Error: ${(err as Error).message}`));
+      }
+      break;
+    }
+
+    case 'quick': {
+      const task = options.task || target;
+      if (!task) {
+        console.log(chalk.red('Error: Please specify a task'));
+        return;
+      }
+
+      if (!options.objective) {
+        console.log(chalk.red('Error: Please specify an objective with --objective'));
+        return;
+      }
+
+      const preset = (options.preset || 'balanced') as 'fast' | 'balanced' | 'thorough';
+      console.log(chalk.cyan(`\n⚡ Quick Optimization (${preset})\n`));
+
+      spinner.start('Running quick optimization...');
+
+      try {
+        const result = await quickOptimize(task, options.objective, { strategy: preset });
+        spinner.succeed(`Score: ${result.score.toFixed(4)}`);
+
+        console.log(chalk.white('\nSolution:'));
+        console.log(result.solution);
+
+        if (result.insights.length > 0) {
+          console.log(chalk.white('\nKey Insights:'));
+          result.insights.slice(0, 3).forEach(i => console.log(`  • ${i}`));
+        }
+
+      } catch (err) {
+        spinner.fail('Quick optimization failed');
+        console.log(chalk.red(`Error: ${(err as Error).message}`));
+      }
+      break;
+    }
+
+    case 'list': {
+      const sessions = listOptimizations();
+      if (sessions.length === 0) {
+        console.log(chalk.dim('No optimization sessions found.'));
+        return;
+      }
+
+      console.log(chalk.cyan('\n📊 ALE Sessions\n'));
+      console.log('─'.repeat(80));
+      console.log(
+        chalk.dim('ID'.padEnd(12)) +
+        chalk.dim('Status'.padEnd(12)) +
+        chalk.dim('Task'.padEnd(35)) +
+        chalk.dim('Score'.padEnd(10)) +
+        chalk.dim('Trials')
+      );
+      console.log('─'.repeat(80));
+
+      sessions.forEach(s => {
+        const statusColor = s.status === 'completed' ? chalk.green :
+          s.status === 'running' ? chalk.yellow :
+            s.status === 'failed' ? chalk.red : chalk.dim;
+        console.log(
+          chalk.white(s.id.slice(0, 10).padEnd(12)) +
+          statusColor(s.status.padEnd(12)) +
+          chalk.dim(s.config.task.slice(0, 33).padEnd(35)) +
+          chalk.white((s.bestScore?.totalScore.toFixed(3) || 'N/A').padEnd(10)) +
+          chalk.dim(String(s.trials.length))
+        );
+      });
+      break;
+    }
+
+    case 'status': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify a session ID'));
+        return;
+      }
+
+      const session = getOptimizationSession(target);
+      if (!session) {
+        console.log(chalk.red(`Session not found: ${target}`));
+        return;
+      }
+
+      console.log(chalk.cyan(`\n📊 Session: ${session.id}\n`));
+      console.log(`Status:      ${session.status}`);
+      console.log(`Task:        ${session.config.task}`);
+      console.log(`Objective:   ${session.config.objective}`);
+      console.log(`Progress:    ${session.progress.currentTrial}/${session.progress.totalTrials}`);
+      console.log(`Best Score:  ${session.bestScore?.totalScore.toFixed(4) || 'N/A'}`);
+      console.log(`Temperature: ${session.progress.temperature?.toFixed(3) || 'N/A'}`);
+      console.log(`Phase:       ${session.progress.currentPhase}`);
+      break;
+    }
+
+    case 'stop': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify a session ID'));
+        return;
+      }
+
+      const stopped = stopOptimization(target);
+      if (stopped) {
+        console.log(chalk.green(`Stopped session: ${target}`));
+      } else {
+        console.log(chalk.red(`Could not stop session: ${target}`));
+      }
+      break;
+    }
+
+    case 'insights': {
+      if (!target) {
+        console.log(chalk.red('Error: Please specify a session ID'));
+        return;
+      }
+
+      const session = getOptimizationSession(target);
+      if (!session) {
+        console.log(chalk.red(`Session not found: ${target}`));
+        return;
+      }
+
+      const summary = summarizeInsights(session.insights);
+      console.log(chalk.cyan('\n🧠 Insights Summary\n'));
+      console.log(summary);
+      break;
+    }
+
+    default: {
+      console.log(chalk.cyan('\n🧠 ALE - Agentic Learning Engine\n'));
+      console.log(chalk.dim('Multi-trial optimization inspired by Sakana AI\'s ALE-Agent'));
+      console.log('');
+      console.log(chalk.white('Usage:'));
+      console.log('  ankrcode ale optimize --task "..." --objective "..."');
+      console.log('  ankrcode ale quick "task" --objective "..."');
+      console.log('  ankrcode ale list');
+      console.log('  ankrcode ale status <session-id>');
+      console.log('  ankrcode ale stop <session-id>');
+      console.log('  ankrcode ale insights <session-id>');
+      console.log('');
+      console.log(chalk.white('Examples:'));
+      console.log(chalk.dim('  # Full optimization'));
+      console.log('  ankrcode ale optimize --task "Optimize caching" --objective "Max hit rate" --strategy hybrid');
+      console.log('');
+      console.log(chalk.dim('  # Quick optimization'));
+      console.log('  ankrcode ale quick "Refactor auth flow" --objective "Improve security" --preset balanced');
+      console.log('');
+      console.log(chalk.white('Strategies:'));
+      console.log('  greedy       - Always take best immediate option');
+      console.log('  annealing    - Simulated annealing (escape local optima)');
+      console.log('  hybrid       - Greedy baseline + annealing refinement (recommended)');
+      console.log('  beam         - Track multiple candidates');
+      console.log('  evolutionary - Genetic algorithm style');
+      break;
     }
   }
 }

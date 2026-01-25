@@ -15,6 +15,7 @@ import { webFetchTool, webSearchTool } from './core/web.js';
 import { enterPlanModeTool, exitPlanModeTool } from './core/plan.js';
 import { skillTool } from './core/skill.js';
 import { notebookEditTool, notebookReadTool } from './core/notebook.js';
+import { aleOptimizeTool, aleQuickTool, aleStatusTool } from './core/ale.js';
 
 /**
  * Tool Registry - Singleton pattern
@@ -122,6 +123,7 @@ class ToolRegistry {
       planning: ['EnterPlanMode', 'ExitPlanMode'],
       skill: ['Skill'],
       notebook: ['NotebookEdit', 'NotebookRead'],
+      optimization: ['ALEOptimize', 'ALEQuick', 'ALEStatus'],
     };
 
     const toolNames = categories[category] || [];
@@ -171,6 +173,11 @@ class ToolRegistry {
       // Notebook
       notebookEditTool,
       notebookReadTool,
+
+      // ALE - Agentic Learning Engine (v2.43)
+      aleOptimizeTool,
+      aleQuickTool,
+      aleStatusTool,
     ]);
 
     this.initialized = true;

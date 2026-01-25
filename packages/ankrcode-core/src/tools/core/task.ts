@@ -26,7 +26,8 @@ const AGENT_PRESETS: Record<AgentType, AgentPreset> = {
 - Analyze requirements thoroughly
 - Identify critical files and dependencies
 - Create step-by-step implementation plans
-- Consider architectural trade-offs`,
+- Consider architectural trade-offs
+- For optimization tasks, consider using ALEOptimize tool for multi-trial iteration`,
     tools: ['Read', 'Glob', 'Grep', 'WebFetch'],
     maxTurns: 15,
     model: 'sonnet',
@@ -36,8 +37,10 @@ const AGENT_PRESETS: Record<AgentType, AgentPreset> = {
 - Write clean, tested, production-ready code
 - Follow existing patterns in the codebase
 - Include proper error handling
-- Document complex logic`,
-    tools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
+- Document complex logic
+- For complex optimization problems, use ALEOptimize to iterate on solutions
+- ALEOptimize runs multiple trials with Virtual Power scoring to find best solutions`,
+    tools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash', 'ALEOptimize', 'ALEQuick'],
     maxTurns: 30,
     model: 'sonnet',
   },
@@ -74,7 +77,10 @@ const AGENT_PRESETS: Record<AgentType, AgentPreset> = {
     systemPrompt: `You are a general-purpose coding assistant.
 - Handle any coding task
 - Use all available tools as needed
-- Be thorough and careful`,
+- Be thorough and careful
+- For optimization tasks that benefit from iteration, use ALEOptimize tool
+- ALEOptimize uses multi-trial optimization with Virtual Power scoring
+- Use ALEQuick for fast optimization with preset configurations`,
     tools: ['*'], // All tools
     maxTurns: 50,
     model: 'sonnet',

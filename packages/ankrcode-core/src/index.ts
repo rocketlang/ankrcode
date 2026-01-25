@@ -232,5 +232,60 @@ export type {
   VisionAnalysis,
 } from './browser/index.js';
 
+// ALE - Agentic Learning Engine (v2.43)
+// Inspired by Sakana AI's ALE-Agent (AtCoder AHC058 winner)
+export {
+  ALEEngine,
+  aleEngine,
+  optimize,
+  stopOptimization,
+  getOptimizationSession,
+  listOptimizations,
+  quickOptimize,
+  VirtualPowerScorer,
+  virtualPowerScorer,
+  calculateVirtualPower,
+  InsightsGenerator,
+  insightsGenerator,
+  generateInsights,
+  summarizeInsights,
+  SolutionSpaceExplorer,
+  solutionSpaceExplorer,
+  exploreSolutionSpace,
+  WorkingMemory,
+  workingMemory,
+  recallFailedStrategies,
+  storeFailedStrategy,
+  buildWorkingMemoryContext,
+  ALE_VERSION,
+} from './ale/index.js';
+
+export type {
+  Solution,
+  SolutionScore,
+  Trial,
+  Insight,
+  ExplorationStrategy,
+  ALEConfig,
+  ALEProgress,
+  ALEResult,
+  FailedStrategy,
+  ALEStatus,
+  ALEState,
+  ScorerFunction,
+  SolutionGenerator,
+  ScorerContext,
+  GeneratorContext,
+  VirtualPowerFactors,
+  InsightConfig,
+  DetectedPattern,
+  ExplorationState,
+  BeamCandidate,
+  ExplorerConfig,
+  WorkingMemoryEntry,
+  PatternMatch,
+  WorkingMemoryConfig,
+} from './ale/index.js';
+
 // Version
-export const VERSION = '2.42.0';
+export const VERSION = '2.43.0';
