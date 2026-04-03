@@ -8,6 +8,7 @@
  */
 
 // AST
+// @rule:RLNG-001 — index
 export * from './ast.js';
 
 // Emitters

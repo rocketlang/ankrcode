@@ -6,6 +6,7 @@
 import { Tool, ToolResult } from '../../types.js';
 
 // Skill registry
+// @rule:ACOD-001 — skill
 interface SkillDefinition {
   name: string;
   description: string;

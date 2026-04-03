@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import type {
+// @rule:ACOD-001 — loader
   Plugin,
   PluginMetadata,
   LoadedPlugin,

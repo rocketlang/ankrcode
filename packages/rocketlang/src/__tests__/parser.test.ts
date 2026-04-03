@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../parser/index.js';
 import { parsePEG, getSupportedFeatures } from '../parser/peg-parser.js';
 
+// @rule:RLNG-001 — parser.test
 describe('Pattern-based Parser', () => {
   describe('File Operations', () => {
     it('should parse read command', () => {

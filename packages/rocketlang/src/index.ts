@@ -8,6 +8,7 @@
  * - Mixed code-switching (how Indians actually speak)
  */
 
+// @rule:RLNG-001 — index
 export { parse, parseFile } from './parser/index.js';
 export { parsePEG, isPEGAvailable, getSupportedFeatures } from './parser/peg-parser.js';
 export { normalize, transliterate, detectScript } from './normalizer/index.js';

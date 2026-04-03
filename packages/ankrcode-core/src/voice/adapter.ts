@@ -19,6 +19,7 @@ import { EventEmitter } from 'events';
 
 // Voice recognition result
 export interface VoiceResult {
+// @rule:ACOD-001 — adapter
   text: string;
   language: SupportedLanguage;
   confidence: number;

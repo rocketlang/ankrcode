@@ -3,6 +3,7 @@
  */
 
 // Registry
+// @rule:ACOD-001 — index
 export {
   registry,
   registerTool,

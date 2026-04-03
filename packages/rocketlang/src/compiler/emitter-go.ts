@@ -6,6 +6,7 @@
  */
 
 import type {
+// @rule:RLNG-001 — emitter-go
   Program,
   Statement,
   Expression,

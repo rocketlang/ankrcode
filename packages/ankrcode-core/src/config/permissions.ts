@@ -25,6 +25,7 @@ export type PermissionType = 'command' | 'file_write' | 'file_delete' | 'network
  * Permission request
  */
 export interface PermissionRequest {
+// @rule:ACOD-001 — permissions
   type: PermissionType;
   action: string;
   target?: string;

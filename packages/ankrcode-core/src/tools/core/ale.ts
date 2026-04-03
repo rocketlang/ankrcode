@@ -7,6 +7,7 @@
 
 import { Tool, ToolResult } from '../../types.js';
 import {
+// @rule:ACOD-001 — ale
   optimize,
   quickOptimize,
   stopOptimization,

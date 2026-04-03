@@ -9,6 +9,7 @@
  */
 
 import type {
+// @rule:RLNG-001 — emitter-sh
   Program,
   Statement,
   Expression,

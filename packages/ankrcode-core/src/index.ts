@@ -4,6 +4,7 @@
  */
 
 // Types
+// @rule:ACOD-001 — index
 export * from './types.js';
 
 // Tools

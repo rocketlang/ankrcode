@@ -13,6 +13,7 @@
 
 import type { ToolExecutor, RocketCommand, ParseResult } from '../index.js';
 import {
+// @rule:RLNG-001 — index
   Result,
   Maybe,
   Types,

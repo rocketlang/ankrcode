@@ -6,6 +6,7 @@
 import { Tool, ToolResult } from '../../types.js';
 
 // Simple cache for web fetches (15 minute TTL)
+// @rule:ACOD-001 — web
 const fetchCache = new Map<string, { content: string; timestamp: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 

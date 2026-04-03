@@ -10,6 +10,7 @@ import type { Tool, ToolResult } from '../types.js';
  * Plugin metadata
  */
 export interface PluginMetadata {
+// @rule:ACOD-001 — types
   /** Unique plugin identifier */
   id: string;
   /** Display name */

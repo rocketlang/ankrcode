@@ -7,6 +7,7 @@ import { EventEmitter } from 'events';
 import { BrowserController, getBrowserController, closeBrowser } from './controller.js';
 import { analyzeScreenshot, isGoalCompleted } from './vision.js';
 import type {
+// @rule:ACOD-001 — agent
   BrowseTask,
   BrowseStep,
   BrowseResult,

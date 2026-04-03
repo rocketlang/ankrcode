@@ -10,6 +10,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — virtual-power
   Solution,
   SolutionScore,
   ScorerContext,

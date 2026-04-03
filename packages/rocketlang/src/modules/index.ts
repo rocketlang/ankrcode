@@ -8,6 +8,7 @@
  * - as/जैसे - Alias
  */
 
+// @rule:RLNG-001 — index
 export {
   ModuleResolver,
   createResolver,

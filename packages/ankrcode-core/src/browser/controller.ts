@@ -4,6 +4,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — controller
   BrowserAction,
   BrowserConfig,
   PageState,

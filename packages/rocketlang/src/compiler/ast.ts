@@ -11,6 +11,7 @@ import type { RocketType } from '../types/index.js';
  * Source location
  */
 export interface SourceLocation {
+// @rule:RLNG-001 — ast
   line: number;
   column: number;
   offset?: number;

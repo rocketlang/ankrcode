@@ -5,6 +5,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — manager
   Message,
   ToolCall,
   ToolResult,

@@ -10,6 +10,7 @@
 import type { ToolCall } from '../types.js';
 
 // Response interface
+// @rule:ACOD-001 — offline-adapter
 interface OfflineResponse {
   content: string;
   toolCalls?: ToolCall[];

@@ -9,6 +9,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — working-memory
   FailedStrategy,
   Insight,
   Trial,

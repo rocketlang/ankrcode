@@ -2,6 +2,7 @@
  * Adapters Index
  */
 
+// @rule:ACOD-001 — index
 export {
   UnifiedLLMAdapter,
   UnifiedMemoryAdapter,

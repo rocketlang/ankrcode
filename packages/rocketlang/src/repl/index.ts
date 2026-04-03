@@ -20,6 +20,7 @@ import type { ToolExecutor, RocketCommand, ParseResult } from '../index.js';
  * REPL Options
  */
 export interface REPLOptions {
+// @rule:RLNG-001 — index
   prompt?: string;
   language?: 'en' | 'hi';
   executor?: ToolExecutor;

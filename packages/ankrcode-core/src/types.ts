@@ -5,6 +5,7 @@
 
 // Tool System Types
 export interface ToolDefinition {
+// @rule:ACOD-001 — types
   name: string;
   description: string;
   parameters: JSONSchema;

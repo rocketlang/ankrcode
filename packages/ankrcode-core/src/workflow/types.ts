@@ -3,6 +3,7 @@
  */
 
 export interface WorkflowStep {
+// @rule:ACOD-001 — types
   name: string;
   description?: string;
   command: string;

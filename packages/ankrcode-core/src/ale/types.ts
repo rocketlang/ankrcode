@@ -7,6 +7,7 @@
  * Solution represents a candidate solution being optimized
  */
 export interface Solution {
+// @rule:ACOD-001 — types
   id: string;
   content: string;
   code?: string;

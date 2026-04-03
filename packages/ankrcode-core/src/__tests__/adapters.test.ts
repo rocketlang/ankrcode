@@ -8,6 +8,7 @@ import { getEONAdapter } from '../memory/eon-adapter.js';
 import { getVoiceAdapter } from '../voice/adapter.js';
 import { getOfflineAdapter } from '../ai/offline-adapter.js';
 
+// @rule:ACOD-001 — adapters.test
 describe('MCP Adapter', () => {
   let mcp: ReturnType<typeof getMCPAdapter>;
 

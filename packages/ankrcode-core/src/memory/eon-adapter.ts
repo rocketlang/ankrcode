@@ -8,6 +8,7 @@
 
 // Types for memory operations
 export interface Memory {
+// @rule:ACOD-001 — eon-adapter
   id: string;
   content: string;
   metadata?: Record<string, unknown>;

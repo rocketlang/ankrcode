@@ -11,6 +11,7 @@ import { execSync } from 'child_process';
 /**
  * Execute docker command safely
  */
+// @rule:ACOD-001 — docker
 function execDocker(args: string[]): { stdout: string; stderr: string; code: number } {
   try {
     const stdout = execSync(`docker ${args.join(' ')}`, {

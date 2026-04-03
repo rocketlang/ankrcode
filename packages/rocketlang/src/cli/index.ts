@@ -1,3 +1,4 @@
+// @rule:RLNG-001 — index
 #!/usr/bin/env node
 
 /**

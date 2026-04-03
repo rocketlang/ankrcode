@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 // ============================================================================
 
 export interface MCPTool {
+// @rule:ACOD-001 — discovery
   name: string;
   description: string;
   inputSchema: any;

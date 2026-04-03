@@ -20,6 +20,7 @@ import { aleOptimizeTool, aleQuickTool, aleStatusTool } from './core/ale.js';
 /**
  * Tool Registry - Singleton pattern
  */
+// @rule:ACOD-001 — registry
 class ToolRegistry {
   private tools = new Map<string, Tool>();
   private initialized = false;

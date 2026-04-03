@@ -8,6 +8,7 @@
  */
 
 // Verb mappings (Indic → English canonical)
+// @rule:RLNG-001 — index
 const VERBS: Record<string, string[]> = {
   create: ['बनाओ', 'banao', 'bana', 'make', 'generate', 'உருவாக்கு', 'సృష్టించు'],
   read: ['पढ़ो', 'padho', 'படி', 'చదువు', 'open', 'show', 'दिखाओ', 'dikhao'],

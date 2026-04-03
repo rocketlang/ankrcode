@@ -19,6 +19,7 @@ import type { RocketValue, RocketFunction } from '../runtime/index.js';
  * Module exports
  */
 export interface ModuleExports {
+// @rule:RLNG-001 — loader
   [name: string]: RocketValue | RocketFunction;
 }
 

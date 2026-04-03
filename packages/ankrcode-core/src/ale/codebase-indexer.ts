@@ -19,6 +19,7 @@ import * as path from 'path';
  * Code chunk extracted from a file
  */
 export interface CodeChunk {
+// @rule:ACOD-001 — codebase-indexer
   id: string;
   filePath: string;
   relativePath: string;

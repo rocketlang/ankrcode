@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { normalize, transliterate, detectScript } from '../normalizer/index.js';
 
+// @rule:RLNG-001 — normalizer.test
 describe('Script Detection', () => {
   it('should detect Devanagari script', () => {
     expect(detectScript('पढ़ो फ़ाइल')).toBe('devanagari');

@@ -15,6 +15,7 @@
 import type { Tool, ToolResult } from '../types.js';
 
 // Bani Tool interface (from @powerpbox/mcp)
+// @rule:ACOD-001 — adapter
 interface BaniParameter {
   name: string;
   type?: string;

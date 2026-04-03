@@ -11,6 +11,7 @@ import { execSync, spawn } from 'child_process';
 /**
  * Execute git command safely
  */
+// @rule:ACOD-001 — git
 function execGit(args: string[], cwd?: string): { stdout: string; stderr: string; code: number } {
   try {
     const stdout = execSync(`git ${args.join(' ')}`, {

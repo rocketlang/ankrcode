@@ -6,6 +6,7 @@
 import { Tool, ToolResult, Todo } from '../../types.js';
 
 // Current todo list state
+// @rule:ACOD-001 — interactive
 let currentTodos: Todo[] = [];
 
 /**

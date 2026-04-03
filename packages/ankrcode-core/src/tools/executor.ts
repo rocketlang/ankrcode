@@ -8,6 +8,7 @@ import { ToolInvocation, ToolResult } from '../types.js';
 import { hasRecentlyRead } from './core/file.js';
 import { isInPlanMode, isCommandAllowed } from './core/plan.js';
 
+// @rule:ACOD-001 — executor
 interface ExecutorOptions {
   /** Require user approval for certain tools */
   requireApproval?: boolean;

@@ -6,6 +6,7 @@
 import type { SupportedLanguage } from '../types.js';
 
 // Message catalog
+// @rule:ACOD-001 — index
 const messages: Record<SupportedLanguage, Record<string, string>> = {
   en: {
     welcome: 'Welcome! I am AnkrCode, your AI coding assistant.',

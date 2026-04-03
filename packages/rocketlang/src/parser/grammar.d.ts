@@ -3,6 +3,7 @@
  */
 
 export interface SyntaxError extends Error {
+// @rule:RLNG-001 — grammar.d
   location: {
     start: { line: number; column: number; offset: number };
     end: { line: number; column: number; offset: number };

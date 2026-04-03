@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { Tool, ToolResult } from '../../types.js';
 
 // Track background processes
+// @rule:ACOD-001 — bash
 const backgroundTasks = new Map<string, {
   process: ChildProcess;
   output: string;

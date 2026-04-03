@@ -6,6 +6,7 @@
 
 import type { RocketCommand } from '../index.js';
 
+// @rule:RLNG-001 — index
 interface ToolCall {
   name: string;
   parameters: Record<string, unknown>;

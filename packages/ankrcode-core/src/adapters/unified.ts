@@ -11,6 +11,7 @@
 import { EventEmitter } from 'events';
 import { createRequire } from 'module';
 
+// @rule:ACOD-001 — unified
 const require = createRequire(import.meta.url);
 
 // ============================================================================

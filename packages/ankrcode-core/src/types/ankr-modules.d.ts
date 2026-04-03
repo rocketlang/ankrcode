@@ -3,6 +3,7 @@
  * These modules are dynamically imported and may not be installed
  */
 
+// @rule:ACOD-001 — ankr-modules.d
 declare module '@ankr/mcp-tools' {
   export function getAllTools(): Promise<any[]>;
   export function executeTool(name: string, params: any): Promise<any>;

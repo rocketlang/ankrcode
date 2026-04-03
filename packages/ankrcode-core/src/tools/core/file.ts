@@ -8,6 +8,7 @@ import * as path from 'path';
 import { Tool, ToolResult } from '../../types.js';
 
 // Track files that have been read (for Edit safety)
+// @rule:ACOD-001 — file
 const filesRead = new Set<string>();
 
 export function hasRecentlyRead(filePath: string): boolean {

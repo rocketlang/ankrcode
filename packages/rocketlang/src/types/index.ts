@@ -13,6 +13,7 @@
  * All possible types in RocketLang
  */
 export type RocketType =
+// @rule:RLNG-001 — index
   | PrimitiveType
   | GenericType
   | FunctionType

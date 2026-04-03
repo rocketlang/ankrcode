@@ -8,6 +8,7 @@ import * as path from 'path';
 import { Tool, ToolResult } from '../../types.js';
 
 // Plan mode state
+// @rule:ACOD-001 — plan
 interface PlanState {
   inPlanMode: boolean;
   planFile: string | null;

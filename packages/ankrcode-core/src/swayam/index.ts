@@ -17,6 +17,7 @@ export type ToolExecutor = (name: string, params: Record<string, unknown>) => Pr
 
 // RocketLang command interface
 export interface RocketLangCommand {
+// @rule:ACOD-001 — index
   tool: string;
   parameters: Record<string, unknown>;
   raw?: string;

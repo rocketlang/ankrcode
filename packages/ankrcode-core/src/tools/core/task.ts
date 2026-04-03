@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { Tool, ToolResult, AgentType, AgentConfig, AgentResult } from '../../types.js';
 
 // Agent registry for resuming
+// @rule:ACOD-001 — task
 const agentRegistry = new Map<string, AgentInstance>();
 
 // Agent presets matching Claude Code

@@ -11,6 +11,7 @@ import { Tool, ToolResult } from '../../types.js';
 /**
  * Glob Tool - Fast file pattern matching
  */
+// @rule:ACOD-001 — search
 export const globTool: Tool = {
   name: 'Glob',
   description: `Fast file pattern matching tool.

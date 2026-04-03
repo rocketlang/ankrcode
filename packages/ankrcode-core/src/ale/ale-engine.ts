@@ -12,6 +12,7 @@
 
 import { EventEmitter } from 'events';
 import type {
+// @rule:ACOD-001 — ale-engine
   ALEConfig,
   ALEState,
   ALEStatus,

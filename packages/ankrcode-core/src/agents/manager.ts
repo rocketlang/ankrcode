@@ -5,6 +5,7 @@
 
 import { EventEmitter } from 'events';
 import type {
+// @rule:ACOD-001 — manager
   AgentType,
   AgentConfig,
   AgentState,

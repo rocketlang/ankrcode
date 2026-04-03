@@ -3,6 +3,7 @@
  */
 
 export type AgentType =
+// @rule:ACOD-001 — types
   | 'researcher'
   | 'coder'
   | 'reviewer'

@@ -4,6 +4,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — ankr-aware
   Solution,
   SolutionScore,
   ScorerContext,

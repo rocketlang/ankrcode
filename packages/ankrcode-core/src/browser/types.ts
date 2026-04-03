@@ -4,6 +4,7 @@
  */
 
 export type BrowserActionType =
+// @rule:ACOD-001 — types
   | 'goto'
   | 'click'
   | 'type'

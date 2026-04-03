@@ -32,6 +32,7 @@
 
 // Types
 export type {
+// @rule:ACOD-001 — index
   Solution,
   SolutionScore,
   Trial,

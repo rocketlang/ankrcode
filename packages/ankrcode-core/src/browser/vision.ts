@@ -10,6 +10,7 @@ import { getAIRouterAdapter } from '../ai/router-adapter.js';
 /**
  * Analyze page state and suggest next action
  */
+// @rule:ACOD-001 — vision
 export async function analyzeScreenshot(
   _screenshot: string, // Reserved for future vision API
   pageState: PageState,

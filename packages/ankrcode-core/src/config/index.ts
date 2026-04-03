@@ -15,6 +15,7 @@ import * as os from 'os';
  * Settings schema (mirrors Claude Code's settings.json)
  */
 export interface AnkrCodeSettings {
+// @rule:ACOD-001 — index
   // Model preferences
   model?: string;
   fallbackModel?: string;

@@ -8,6 +8,7 @@ import type { RocketCommand, ParseResult, ParseError } from '../index.js';
 import { normalize, transliterate, detectScript } from '../normalizer/index.js';
 
 // AST Node types from PEG parser
+// @rule:RLNG-001 — peg-parser
 interface ASTNode {
   type: string;
   [key: string]: unknown;

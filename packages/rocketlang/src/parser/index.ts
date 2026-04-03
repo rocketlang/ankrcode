@@ -9,6 +9,7 @@ import { normalize, detectScript } from '../normalizer/index.js';
 import type { RocketCommand, ParseResult, ParseError } from '../index.js';
 
 // Command patterns (normalized English)
+// @rule:RLNG-001 — index
 interface Pattern {
   regex: RegExp;
   tool: string;

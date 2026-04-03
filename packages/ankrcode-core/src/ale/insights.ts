@@ -9,6 +9,7 @@
  */
 
 import type {
+// @rule:ACOD-001 — insights
   Trial,
   Insight,
   Solution,

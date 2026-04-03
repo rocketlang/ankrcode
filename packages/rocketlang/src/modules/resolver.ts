@@ -15,6 +15,7 @@ import { resolve, dirname, join, extname, isAbsolute } from 'path';
  * Module resolution result
  */
 export interface ModuleResolution {
+// @rule:RLNG-001 — resolver
   type: 'file' | 'package' | 'builtin' | 'url';
   path: string;
   originalPath: string;

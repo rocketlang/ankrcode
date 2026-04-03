@@ -13,6 +13,7 @@ import type { Tool, ToolResult } from '../../types.js';
 // Types
 // ============================================================================
 
+// @rule:ACOD-001 — notebook
 interface NotebookCell {
   cell_type: 'code' | 'markdown' | 'raw';
   source: string | string[];

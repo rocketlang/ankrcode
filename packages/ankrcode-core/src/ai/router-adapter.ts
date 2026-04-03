@@ -8,6 +8,7 @@
 import type { ToolCall, ToolResult } from '../types.js';
 
 // AI Proxy configuration (ANKR's unified gateway)
+// @rule:ACOD-001 — router-adapter
 const AI_PROXY_URL = process.env.AI_PROXY_URL || 'http://localhost:4444';
 
 // Types from ai-router

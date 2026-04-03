@@ -5,6 +5,7 @@
  */
 
 import {
+// @rule:ACOD-001 — diagnostics
   detectANKRPackages,
   checkAllServices,
   type ServiceHealth,
